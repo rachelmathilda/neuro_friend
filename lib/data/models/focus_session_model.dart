@@ -1,5 +1,3 @@
-import 'package:flutter/material.dart';
-
 class FocusSessionModel {
   final String id;
   final DateTime startTime;

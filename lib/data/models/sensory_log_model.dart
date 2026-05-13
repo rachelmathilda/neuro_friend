@@ -1,5 +1,3 @@
-import 'package:flutter/material.dart';
-
 class SensoryLogModel {
   final String id;
   final DateTime timestamp;
