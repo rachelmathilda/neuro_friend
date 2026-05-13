@@ -69,7 +69,7 @@ dependencies:
 
   # Audio
   just_audio: ^0.9.46
-  record: ^5.2.0
+  record: ^6.0.0
   flutter_soloud: ^3.2.4
   vibration: ^2.0.0
 
