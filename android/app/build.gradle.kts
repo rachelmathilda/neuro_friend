@@ -17,7 +17,7 @@ plugins {
 
 android {
     namespace = "com.neurofriend.neuro_friend"
-    compileSdk = flutter.compileSdkVersion
+    compileSdk = 36
     ndkVersion = flutter.ndkVersion
 
     compileOptions {
