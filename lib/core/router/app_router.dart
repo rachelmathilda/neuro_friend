@@ -51,7 +51,7 @@ class AppRouter {
       case AppRoutes.brainDump:
         return _build(const BrainDumpScreen());
       case AppRoutes.aiVoice:
-        return _build(const AIVoiceScreen());
+        return _build(const AiVoiceScreen());
       case AppRoutes.deepFocus:
         return _build(const DeepFocusScreen());
       case AppRoutes.appUsage:

@@ -33,4 +33,5 @@ class AppColors {
   static const Color chartRed = Color(0xFFFFB3B3);
   static const Color chartGreen = Color(0xFF6BC46A);
   static const Color chartOrange = Color(0xFFF5A623);
+  static const Color border = Color(0xFFE8E8E8);
 }
