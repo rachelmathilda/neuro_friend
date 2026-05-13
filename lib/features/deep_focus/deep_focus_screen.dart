@@ -16,7 +16,7 @@ class DeepFocusScreen extends ConsumerStatefulWidget {
 class _DeepFocusScreenState extends ConsumerState<DeepFocusScreen> {
   Timer? _timer;
   Duration _elapsed = Duration.zero;
-  int _reminderMinutes = 60;
+  final int _reminderMinutes = 60;
   bool _allowSwitch = false;
 
   @override

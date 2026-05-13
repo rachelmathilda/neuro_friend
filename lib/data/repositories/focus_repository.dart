@@ -42,7 +42,7 @@ class FocusRepository {
     final completed = sessions.where((s) => s.endTime != null).toList();
     final totalMinutes = completed.fold<int>(
       0,
-      (sum, s) => sum + s.elapsed.inMinutes,
+      (acc, s) => acc + s.elapsed.inMinutes,
     );
 
     final avgHours = completed.isEmpty
