@@ -33,7 +33,7 @@ android {
     defaultConfig {
         applicationId = "com.neurofriend.neuro_friend"
         minSdk = flutter.minSdkVersion
-        targetSdk = flutter.targetSdkVersion
+        targetSdk = 36
         versionCode = flutter.versionCode
         versionName = flutter.versionName
     }
