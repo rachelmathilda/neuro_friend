@@ -1,11 +1,10 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import '../../core/constants/app_colors.dart';
 import '../../core/constants/app_text_styles.dart';
 import '../../core/router/app_router.dart';
+import '../../core/widgets/bottom_nav.dart';
 import '../../data/models/task_model.dart';
 import '../../providers/task_provider.dart';
-import '../../core/widgets/bottom_nav.dart';
 
 class TodosScreen extends ConsumerStatefulWidget {
   const TodosScreen({super.key});
@@ -28,40 +27,93 @@ class _TodosScreenState extends ConsumerState<TodosScreen> {
     final taskState = ref.watch(taskProvider);
 
     return Scaffold(
+      backgroundColor: const Color(0xFFF4F4F4),
       body: SafeArea(
         child: Column(
           children: [
-            Padding(
-              padding: const EdgeInsets.fromLTRB(20, 16, 20, 0),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [Text('TODOs', style: AppTextStyles.headlineSmall)],
+            const SizedBox(height: 20),
+
+            Text(
+              'TODOs',
+              style: AppTextStyles.titleLarge.copyWith(
+                fontSize: 18,
+                fontWeight: FontWeight.w100,
+                color: Colors.black87,
               ),
             ),
-            const SizedBox(height: 12),
-            _FilterChips(
-              selected: _filterIndex,
-              onSelected: (i) => setState(() => _filterIndex = i),
+
+            const SizedBox(height: 30),
+
+            Padding(
+              padding: const EdgeInsets.symmetric(horizontal: 24),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: List.generate(3, (i) {
+                  final labels = ['All', 'Urgent', 'Delayed'];
+                  final isSelected = i == _filterIndex;
+
+                  return Expanded(
+                    child: Padding(
+                      padding: EdgeInsets.only(right: i == 2 ? 0 : 10),
+                      child: GestureDetector(
+                        onTap: () => setState(() {
+                          _filterIndex = i;
+                        }),
+                        child: Container(
+                          height: 42,
+                          decoration: BoxDecoration(
+                            color: isSelected
+                                ? const Color(0xFF4D83D9)
+                                : const Color(0xFF43639C),
+                            borderRadius: BorderRadius.circular(22),
+                          ),
+                          alignment: Alignment.center,
+                          child: Text(
+                            labels[i],
+                            style: AppTextStyles.bodyMedium.copyWith(
+                              color: Colors.white,
+                              fontSize: 13,
+                              fontWeight: FontWeight.w500,
+                            ),
+                          ),
+                        ),
+                      ),
+                    ),
+                  );
+                }),
+              ),
             ),
-            const SizedBox(height: 8),
+
+            const SizedBox(height: 18),
+
             Expanded(
               child: taskState.when(
                 loading: () => const Center(child: CircularProgressIndicator()),
-                error: (e, _) => Center(child: Text('Error: $e')),
+
+                error: (_, __) =>
+                    const Center(child: Text('Failed loading tasks')),
+
                 data: (tasks) {
                   final filtered = _filter(tasks);
+
                   return ListView.separated(
-                    padding: const EdgeInsets.fromLTRB(20, 8, 20, 100),
+                    padding: const EdgeInsets.fromLTRB(24, 0, 24, 24),
                     itemCount: filtered.length + 1,
-                    separatorBuilder: (_, __) => const SizedBox(height: 10),
+                    separatorBuilder: (_, __) => const SizedBox(height: 16),
                     itemBuilder: (context, i) {
-                      if (i == 0) return _BrainDumpCard();
-                      return _TaskCard(task: filtered[i - 1]);
+                      if (i == 0) {
+                        return _BrainDumpCard();
+                      }
+
+                      final task = filtered[i - 1];
+
+                      return _TaskCard(task: task);
                     },
                   );
                 },
               ),
             ),
+
             BottomNav(currentIndex: 1),
           ],
         ),
@@ -73,56 +125,13 @@ class _TodosScreenState extends ConsumerState<TodosScreen> {
     switch (_filterIndex) {
       case 1:
         return tasks.where((t) => t.isUrgent).toList();
+
       case 2:
         return tasks.where((t) => t.status == TaskStatus.delayed).toList();
+
       default:
         return tasks;
     }
-  }
-}
-
-class _FilterChips extends StatelessWidget {
-  final int selected;
-  final void Function(int) onSelected;
-
-  const _FilterChips({required this.selected, required this.onSelected});
-
-  @override
-  Widget build(BuildContext context) {
-    final labels = ['All', 'Urgent', 'Delayed'];
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 20),
-      child: Row(
-        children: List.generate(labels.length, (i) {
-          final isSelected = i == selected;
-          return Padding(
-            padding: const EdgeInsets.only(right: 8),
-            child: GestureDetector(
-              onTap: () => onSelected(i),
-              child: Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 20,
-                  vertical: 8,
-                ),
-                decoration: BoxDecoration(
-                  color: isSelected
-                      ? AppColors.primary
-                      : AppColors.surfaceVariant,
-                  borderRadius: BorderRadius.circular(20),
-                ),
-                child: Text(
-                  labels[i],
-                  style: AppTextStyles.bodySmall.copyWith(
-                    color: isSelected ? Colors.white : AppColors.textSecondary,
-                    fontWeight: FontWeight.w600,
-                  ),
-                ),
-              ),
-            ),
-          );
-        }),
-      ),
-    );
   }
 }
 
@@ -132,11 +141,10 @@ class _BrainDumpCard extends StatelessWidget {
     return GestureDetector(
       onTap: () => Navigator.pushNamed(context, AppRoutes.brainDump),
       child: Container(
-        padding: const EdgeInsets.all(16),
+        padding: const EdgeInsets.symmetric(horizontal: 26, vertical: 18),
         decoration: BoxDecoration(
-          color: AppColors.surface,
-          borderRadius: BorderRadius.circular(16),
-          border: Border.all(color: AppColors.border),
+          color: const Color(0xFFF8F8F8),
+          borderRadius: BorderRadius.circular(24),
         ),
         child: Row(
           mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -144,14 +152,27 @@ class _BrainDumpCard extends StatelessWidget {
             Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text('Brain Dump', style: AppTextStyles.titleMedium),
+                Text(
+                  'Brain Dump',
+                  style: AppTextStyles.titleMedium.copyWith(
+                    fontSize: 16,
+                    fontWeight: FontWeight.w500,
+                  ),
+                ),
+
+                const SizedBox(height: 4),
+
                 Text(
                   'Write your thought here..',
-                  style: AppTextStyles.bodySmall,
+                  style: AppTextStyles.bodySmall.copyWith(
+                    fontSize: 13,
+                    color: Colors.black,
+                  ),
                 ),
               ],
             ),
-            const Icon(Icons.edit_outlined, color: AppColors.textSecondary),
+
+            const Icon(Icons.edit_outlined, size: 24, color: Colors.black87),
           ],
         ),
       ),
@@ -161,16 +182,18 @@ class _BrainDumpCard extends StatelessWidget {
 
 class _TaskCard extends StatelessWidget {
   final TaskModel task;
+
   const _TaskCard({required this.task});
 
   @override
   Widget build(BuildContext context) {
     final isNow = task.status == TaskStatus.now;
+
     return Container(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.all(24),
       decoration: BoxDecoration(
-        color: isNow ? const Color(0xFFFFF3CC) : AppColors.surface,
-        borderRadius: BorderRadius.circular(16),
+        color: isNow ? const Color(0xFFF5E8BF) : const Color(0xFFF8F8F8),
+        borderRadius: BorderRadius.circular(28),
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -178,46 +201,71 @@ class _TaskCard extends StatelessWidget {
           Row(
             mainAxisAlignment: MainAxisAlignment.spaceBetween,
             children: [
-              Text(task.title, style: AppTextStyles.titleMedium),
+              Text(
+                task.title,
+                style: AppTextStyles.titleLarge.copyWith(
+                  fontSize: 18,
+                  fontWeight: FontWeight.w600,
+                  color: isNow ? Colors.black : Colors.grey,
+                ),
+              ),
+
               Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 12,
-                  vertical: 4,
-                ),
+                width: 100,
+                height: 32,
                 decoration: BoxDecoration(
-                  color: AppColors.surface,
-                  borderRadius: BorderRadius.circular(12),
+                  color: Colors.white,
+                  borderRadius: BorderRadius.circular(18),
                 ),
+                alignment: Alignment.center,
                 child: Text(
                   _statusLabel(task.status),
-                  style: AppTextStyles.bodySmall,
+                  style: AppTextStyles.bodySmall.copyWith(
+                    fontSize: 11,
+                    color: Colors.black,
+                  ),
                 ),
               ),
             ],
           ),
-          const SizedBox(height: 8),
+
+          const SizedBox(height: 14),
+
           _CategoryChip(category: task.category),
-          const SizedBox(height: 8),
+
+          const SizedBox(height: 18),
+
           Row(
             children: [
-              const Icon(
-                Icons.access_time,
-                size: 14,
-                color: AppColors.textSecondary,
-              ),
-              const SizedBox(width: 4),
+              const Icon(Icons.access_time, size: 24, color: Colors.grey),
+
+              const SizedBox(width: 8),
+
               Text(
                 '${_fmt(task.startTime)} - ${_fmt(task.endTime)}',
-                style: AppTextStyles.bodySmall,
+                style: AppTextStyles.bodyMedium.copyWith(
+                  fontSize: 14,
+                  color: Colors.black87,
+                ),
               ),
-              const SizedBox(width: 16),
+
+              const Spacer(),
+
               const Icon(
-                Icons.calendar_today,
-                size: 14,
-                color: AppColors.textSecondary,
+                Icons.calendar_today_outlined,
+                size: 22,
+                color: Colors.grey,
               ),
-              const SizedBox(width: 4),
-              Text(_fmtDate(task.date), style: AppTextStyles.bodySmall),
+
+              const SizedBox(width: 8),
+
+              Text(
+                _fmtDate(task.date),
+                style: AppTextStyles.bodyMedium.copyWith(
+                  fontSize: 14,
+                  color: Colors.black87,
+                ),
+              ),
             ],
           ),
         ],
@@ -229,10 +277,13 @@ class _TaskCard extends StatelessWidget {
     switch (s) {
       case TaskStatus.now:
         return 'Now';
+
       case TaskStatus.notYet:
         return 'Not Yet';
+
       case TaskStatus.done:
         return 'Done';
+
       case TaskStatus.delayed:
         return 'Delayed';
     }
@@ -250,7 +301,7 @@ class _TaskCard extends StatelessWidget {
       'Feb',
       'Mar',
       'Apr',
-      'May',
+      'may',
       'Jun',
       'Jul',
       'Aug',
@@ -259,25 +310,33 @@ class _TaskCard extends StatelessWidget {
       'Nov',
       'Dec',
     ];
+
     return months[m];
   }
 }
 
 class _CategoryChip extends StatelessWidget {
   final TaskCategory category;
+
   const _CategoryChip({required this.category});
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 4),
+      width: 80,
+      height: 28,
       decoration: BoxDecoration(
         color: _color(category),
-        borderRadius: BorderRadius.circular(12),
+        borderRadius: BorderRadius.circular(20),
       ),
+      alignment: Alignment.center,
       child: Text(
         _label(category),
-        style: AppTextStyles.bodySmall.copyWith(color: Colors.white),
+        style: AppTextStyles.bodySmall.copyWith(
+          color: Colors.black87,
+          fontSize: 10,
+          fontWeight: FontWeight.w500,
+        ),
       ),
     );
   }
@@ -285,15 +344,19 @@ class _CategoryChip extends StatelessWidget {
   Color _color(TaskCategory c) {
     switch (c) {
       case TaskCategory.sensory:
-        return AppColors.tagSensory;
+        return const Color(0xFFF5A9B2);
+
       case TaskCategory.health:
-        return AppColors.tagHealth;
+        return const Color(0xFFFFA126);
+
       case TaskCategory.eat:
-        return AppColors.tagEat;
+        return const Color(0xFF8FD063);
+
       case TaskCategory.job:
-        return AppColors.tagJob;
+        return const Color(0xFFD8C9F5);
+
       case TaskCategory.other:
-        return AppColors.textSecondary;
+        return Colors.grey.shade300;
     }
   }
 
@@ -301,12 +364,16 @@ class _CategoryChip extends StatelessWidget {
     switch (c) {
       case TaskCategory.sensory:
         return 'Sensory';
+
       case TaskCategory.health:
         return 'Health';
+
       case TaskCategory.eat:
         return 'Eat';
+
       case TaskCategory.job:
         return 'Job';
+
       case TaskCategory.other:
         return 'Other';
     }

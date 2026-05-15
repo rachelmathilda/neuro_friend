@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/constants/app_colors.dart';
 import '../../core/constants/app_text_styles.dart';
-import '../../core/router/app_router.dart';
+import '../../core/widgets/bottom_nav.dart';
 
 class HomeScreen extends ConsumerWidget {
   const HomeScreen({super.key});
@@ -10,30 +10,35 @@ class HomeScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     return Scaffold(
-      body: SafeArea(
-        child: Column(
-          children: [
-            _Header(),
-            Expanded(
-              child: SingleChildScrollView(
-                padding: const EdgeInsets.symmetric(horizontal: 20),
-                child: Column(
-                  children: [
-                    const SizedBox(height: 24),
-                    _Mascot(),
-                    const SizedBox(height: 32),
-                    _MoodBar(),
-                    const SizedBox(height: 24),
-                  ],
+      backgroundColor: Colors.white,
+      body: Stack(
+        children: [
+          SafeArea(
+            child: Column(
+              children: [
+                _Header(),
+                Expanded(
+                  child: SingleChildScrollView(
+                    padding: const EdgeInsets.symmetric(horizontal: 20),
+                    child: Column(
+                      children: [
+                        const SizedBox(height: 24),
+                        _Mascot(),
+                        const SizedBox(height: 48),
+                        _MoodBar(),
+                        const SizedBox(height: 24),
+                      ],
+                    ),
+                  ),
                 ),
-              ),
+                BottomNav(currentIndex: 0),
+              ],
             ),
-            _BottomNav(currentIndex: 0),
-          ],
-        ),
+          ),
+
+          const _PanicFab(),
+        ],
       ),
-      floatingActionButton: _PanicFab(),
-      floatingActionButtonLocation: FloatingActionButtonLocation.endFloat,
     );
   }
 }
@@ -42,12 +47,12 @@ class _Header extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.fromLTRB(20, 16, 20, 0),
+      padding: const EdgeInsets.fromLTRB(24, 28, 24, 28),
       decoration: const BoxDecoration(
         color: AppColors.butter,
         borderRadius: BorderRadius.only(
-          bottomLeft: Radius.circular(24),
-          bottomRight: Radius.circular(24),
+          bottomLeft: Radius.circular(0),
+          bottomRight: Radius.circular(70),
         ),
       ),
       child: Row(
@@ -57,7 +62,12 @@ class _Header extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
               Text('Good Morning', style: AppTextStyles.titleMedium),
-              Text("User's name", style: AppTextStyles.headlineSmall),
+              Text(
+                "User's name",
+                style: AppTextStyles.bodyMedium.copyWith(
+                  color: AppColors.textSecondary,
+                ),
+              ),
             ],
           ),
           IconButton(
@@ -74,7 +84,7 @@ class _Header extends StatelessWidget {
 class _Mascot extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
-    return Image.asset('assets/images/mascot.png', height: 160);
+    return Image.asset('assets/images/mascot.png', height: 210);
   }
 }
 
@@ -96,10 +106,10 @@ class _MoodBarState extends State<_MoodBar> {
   @override
   Widget build(BuildContext context) {
     return Container(
-      padding: const EdgeInsets.all(20),
+      padding: const EdgeInsets.fromLTRB(18, 20, 18, 26),
       decoration: BoxDecoration(
-        color: AppColors.surface,
-        borderRadius: BorderRadius.circular(20),
+        color: const Color(0xFFF3F2F0),
+        borderRadius: BorderRadius.circular(28),
       ),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceEvenly,
@@ -132,12 +142,12 @@ class _MoodColumn extends StatelessWidget {
     return Column(
       children: [
         Text(mood.label, style: AppTextStyles.bodySmall),
-        const SizedBox(height: 8),
+        const SizedBox(height: 12),
         Container(
-          width: 56,
-          height: 120,
+          width: 70,
+          height: 160,
           decoration: BoxDecoration(
-            color: AppColors.surfaceVariant,
+            color: Colors.white,
             borderRadius: BorderRadius.circular(30),
             border: isSelected ? Border.all(color: mood.color, width: 2) : null,
           ),
@@ -157,124 +167,64 @@ class _MoodColumn extends StatelessWidget {
   }
 }
 
-class _PanicFab extends StatelessWidget {
+class _PanicFab extends StatefulWidget {
+  const _PanicFab();
+
   @override
-  Widget build(BuildContext context) {
-    return FloatingActionButton.extended(
-      onPressed: () {},
-      backgroundColor: AppColors.primary,
-      label: const Text('SOS', style: TextStyle(color: Colors.white)),
-      icon: const Icon(Icons.favorite_border, color: Colors.white),
-    );
-  }
+  State<_PanicFab> createState() => _PanicFabState();
 }
 
-class _BottomNav extends StatelessWidget {
-  final int currentIndex;
-  const _BottomNav({required this.currentIndex});
+class _PanicFabState extends State<_PanicFab> {
+  double top = 650;
+  double left = 250;
+
+  static const double fabWidth = 110;
+  static const double fabHeight = 56;
+  static const double screenPadding = 24;
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      margin: const EdgeInsets.all(16),
-      padding: const EdgeInsets.symmetric(vertical: 8),
-      decoration: BoxDecoration(
-        color: AppColors.surface,
-        borderRadius: BorderRadius.circular(30),
-        boxShadow: [
-          BoxShadow(
-            color: Colors.black.withValues(alpha: 0.06),
-            blurRadius: 12,
-            offset: const Offset(0, 4),
-          ),
-        ],
-      ),
-      child: Row(
-        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-        children: [
-          _NavItem(
-            icon: Icons.home_outlined,
-            index: 0,
-            current: currentIndex,
-            route: AppRoutes.home,
-          ),
-          _NavItem(
-            icon: Icons.calendar_today_outlined,
-            index: 1,
-            current: currentIndex,
-            route: AppRoutes.todos,
-          ),
-          _NavItem(
-            icon: Icons.mic_outlined,
-            index: 2,
-            current: currentIndex,
-            route: AppRoutes.aiVoice,
-            isCentre: true,
-          ),
-          _NavItem(
-            icon: Icons.access_time_outlined,
-            index: 3,
-            current: currentIndex,
-            route: AppRoutes.appUsage,
-          ),
-          _NavItem(
-            icon: Icons.person_outline,
-            index: 4,
-            current: currentIndex,
-            route: AppRoutes.profile,
-          ),
-        ],
-      ),
-    );
-  }
-}
+    final screenSize = MediaQuery.of(context).size;
 
-class _NavItem extends StatelessWidget {
-  final IconData icon;
-  final int index;
-  final int current;
-  final String route;
-  final bool isCentre;
+    return Positioned(
+      top: top,
+      left: left,
+      child: GestureDetector(
+        onPanUpdate: (details) {
+          setState(() {
+            left += details.delta.dx;
+            top += details.delta.dy;
 
-  const _NavItem({
-    required this.icon,
-    required this.index,
-    required this.current,
-    required this.route,
-    this.isCentre = false,
-  });
+            final maxLeft = screenSize.width - fabWidth - screenPadding;
 
-  @override
-  Widget build(BuildContext context) {
-    final isActive = index == current;
+            final maxTop = screenSize.height - fabHeight - screenPadding;
 
-    if (isCentre) {
-      return GestureDetector(
-        onTap: () => Navigator.pushNamed(context, route),
-        child: Container(
-          width: 52,
-          height: 52,
-          decoration: BoxDecoration(
-            color: AppColors.butter,
-            shape: BoxShape.circle,
+            if (left < screenPadding) {
+              left = screenPadding;
+            }
+
+            if (top < screenPadding) {
+              top = screenPadding;
+            }
+
+            if (left > maxLeft) {
+              left = maxLeft;
+            }
+
+            if (top > maxTop) {
+              top = maxTop;
+            }
+          });
+        },
+        child: SizedBox(
+          width: fabWidth,
+          height: fabHeight,
+          child: FloatingActionButton.extended(
+            onPressed: () {},
+            backgroundColor: AppColors.primary,
+            label: const Text('SOS', style: TextStyle(color: Colors.white)),
+            icon: const Icon(Icons.favorite_border, color: Colors.white),
           ),
-          child: Icon(icon, color: AppColors.primary, size: 26),
-        ),
-      );
-    }
-
-    return GestureDetector(
-      onTap: () {
-        if (!isActive) Navigator.pushNamed(context, route);
-      },
-      child: Container(
-        width: 48,
-        height: 48,
-        alignment: Alignment.center,
-        child: Icon(
-          icon,
-          color: isActive ? AppColors.primary : AppColors.textSecondary,
-          size: 24,
         ),
       ),
     );

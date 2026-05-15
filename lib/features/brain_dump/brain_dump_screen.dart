@@ -69,15 +69,25 @@ class _BrainDumpScreenState extends ConsumerState<BrainDumpScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
+      backgroundColor: Colors.white,
       appBar: AppBar(
-        title: const Text('Brain Dump'),
+        backgroundColor: Colors.white,
+        elevation: 0,
         leading: IconButton(
-          icon: const Icon(Icons.arrow_back),
+          icon: const Icon(Icons.arrow_back, color: AppColors.textPrimary),
           onPressed: () => Navigator.pop(context),
         ),
+        title: Text(
+          'Brain Dump',
+          style: AppTextStyles.bodyMedium.copyWith(
+            fontSize: 18,
+            fontWeight: FontWeight.w100,
+          ),
+        ),
+        centerTitle: true,
       ),
       body: Padding(
-        padding: const EdgeInsets.all(20),
+        padding: const EdgeInsets.fromLTRB(20, 8, 20, 20),
         child: Column(
           children: [
             if (_previousDump.isNotEmpty)
@@ -90,13 +100,23 @@ class _BrainDumpScreenState extends ConsumerState<BrainDumpScreen> {
                 ),
                 child: Stack(
                   children: [
-                    Text(_previousDump, style: AppTextStyles.bodyMedium),
+                    Padding(
+                      padding: const EdgeInsets.only(right: 24),
+                      child: Text(
+                        _previousDump,
+                        style: AppTextStyles.bodyMedium,
+                      ),
+                    ),
                     Positioned(
                       top: 0,
                       right: 0,
                       child: GestureDetector(
                         onTap: () => setState(() => _previousDump = ''),
-                        child: const Icon(Icons.close, size: 18),
+                        child: const Icon(
+                          Icons.close,
+                          size: 18,
+                          color: AppColors.textSecondary,
+                        ),
                       ),
                     ),
                   ],
@@ -106,21 +126,49 @@ class _BrainDumpScreenState extends ConsumerState<BrainDumpScreen> {
             TextField(
               controller: _controller,
               maxLines: 5,
-              decoration: const InputDecoration(hintText: 'Write something...'),
+              style: AppTextStyles.bodyMedium,
+              decoration: InputDecoration(
+                hintText: 'Write something...',
+                hintStyle: AppTextStyles.bodyMedium.copyWith(
+                  color: AppColors.textHint,
+                ),
+                filled: true,
+                fillColor: AppColors.surfaceVariant,
+                border: OutlineInputBorder(
+                  borderRadius: BorderRadius.circular(16),
+                  borderSide: BorderSide.none,
+                ),
+                contentPadding: const EdgeInsets.all(16),
+              ),
             ),
             const Spacer(),
-            ElevatedButton(
-              onPressed: _isProcessing ? null : _process,
-              child: _isProcessing
-                  ? const SizedBox(
-                      height: 20,
-                      width: 20,
-                      child: CircularProgressIndicator(
-                        color: Colors.white,
-                        strokeWidth: 2,
+            SizedBox(
+              width: double.infinity,
+              height: 52,
+              child: ElevatedButton(
+                onPressed: _isProcessing ? null : _process,
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppColors.primary,
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(30),
+                  ),
+                ),
+                child: _isProcessing
+                    ? const SizedBox(
+                        height: 20,
+                        width: 20,
+                        child: CircularProgressIndicator(
+                          color: Colors.white,
+                          strokeWidth: 2,
+                        ),
+                      )
+                    : Text(
+                        'Process',
+                        style: AppTextStyles.titleMedium.copyWith(
+                          color: Colors.white,
+                        ),
                       ),
-                    )
-                  : const Text('Process'),
+              ),
             ),
           ],
         ),

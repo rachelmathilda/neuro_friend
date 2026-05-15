@@ -28,13 +28,11 @@ class _AppUsageScreenState extends ConsumerState<AppUsageScreen> {
       body: SafeArea(
         child: Column(
           children: [
-            Padding(
-              padding: const EdgeInsets.fromLTRB(20, 16, 20, 0),
-              child: Center(
-                child: Text(
-                  'App Usage Monitoring',
-                  style: AppTextStyles.titleLarge,
-                ),
+            Text(
+              'App Usage Monitoring',
+              style: AppTextStyles.bodyMedium.copyWith(
+                fontSize: 18,
+                fontWeight: FontWeight.w100,
               ),
             ),
             const SizedBox(height: 16),
