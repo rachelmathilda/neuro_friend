@@ -164,13 +164,7 @@ class _SocialButton extends StatelessWidget {
           shape: BoxShape.circle,
           border: Border.all(color: AppColors.border),
         ),
-        child: Padding(
-          padding: const EdgeInsets.all(12),
-          child: Image.asset(
-            icon,
-            errorBuilder: (_, __, ___) => const Icon(Icons.login),
-          ),
-        ),
+        child: ClipOval(child: Image.asset(icon, fit: BoxFit.cover)),
       ),
     );
   }

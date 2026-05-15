@@ -1,6 +1,6 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
     <application
-        android:label="neuro_friend"
+        android:label="Neuro Friend"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher">
         <activity

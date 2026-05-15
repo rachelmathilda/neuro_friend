@@ -6,6 +6,7 @@ import '../../providers/focus_provider.dart';
 import '../../services/gemma_service.dart';
 import '../../services/stt_service.dart';
 import '../../services/tts_service.dart';
+import 'dart:math' as math;
 
 class AiVoiceScreen extends ConsumerStatefulWidget {
   const AiVoiceScreen({super.key});
@@ -137,30 +138,136 @@ class _AiVoiceScreenState extends ConsumerState<AiVoiceScreen> {
   }
 }
 
-class _AnimatedOrb extends StatelessWidget {
+class _AnimatedOrb extends StatefulWidget {
   final bool isListening;
   final bool isThinking;
 
   const _AnimatedOrb({required this.isListening, required this.isThinking});
 
   @override
+  State<_AnimatedOrb> createState() => _AnimatedOrbState();
+}
+
+class _AnimatedOrbState extends State<_AnimatedOrb>
+    with TickerProviderStateMixin {
+  late AnimationController _rotateController;
+  late AnimationController _pulseController;
+  late Animation<double> _pulseAnimation;
+
+  @override
+  void initState() {
+    super.initState();
+    _rotateController = AnimationController(
+      vsync: this,
+      duration: const Duration(seconds: 8),
+    )..repeat();
+
+    _pulseController = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 1200),
+    )..repeat(reverse: true);
+
+    _pulseAnimation = Tween<double>(begin: 0.92, end: 1.08).animate(
+      CurvedAnimation(parent: _pulseController, curve: Curves.easeInOut),
+    );
+  }
+
+  @override
+  void dispose() {
+    _rotateController.dispose();
+    _pulseController.dispose();
+    super.dispose();
+  }
+
+  @override
   Widget build(BuildContext context) {
-    return Container(
-      width: 200,
-      height: 200,
-      decoration: BoxDecoration(
-        color: AppColors.surfaceVariant,
-        borderRadius: BorderRadius.circular(16),
-      ),
-      child: Center(
-        child: isThinking
-            ? const CircularProgressIndicator()
-            : Icon(
-                isListening ? Icons.mic : Icons.mic_none,
-                size: 64,
-                color: AppColors.primary,
+    return SizedBox(
+      width: 220,
+      height: 220,
+      child: AnimatedBuilder(
+        animation: Listenable.merge([_rotateController, _pulseController]),
+        builder: (context, child) {
+          return Transform.scale(
+            scale: widget.isListening ? _pulseAnimation.value : 1.0,
+            child: CustomPaint(
+              painter: _OrbPainter(
+                rotation: _rotateController.value,
+                isListening: widget.isListening,
+                isThinking: widget.isThinking,
               ),
+              child: Center(
+                child: widget.isThinking
+                    ? const CircularProgressIndicator(color: Colors.white)
+                    : Icon(
+                        widget.isListening ? Icons.mic : Icons.mic_none,
+                        size: 48,
+                        color: Colors.white,
+                      ),
+              ),
+            ),
+          );
+        },
       ),
     );
   }
+}
+
+class _OrbPainter extends CustomPainter {
+  final double rotation;
+  final bool isListening;
+  final bool isThinking;
+
+  _OrbPainter({
+    required this.rotation,
+    required this.isListening,
+    required this.isThinking,
+  });
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final center = Offset(size.width / 2, size.height / 2);
+    final radius = size.width / 2;
+
+    final bgPaint = Paint()
+      ..shader = RadialGradient(
+        colors: [
+          AppColors.primary.withValues(alpha: 0.9),
+          AppColors.primaryDark.withValues(alpha: 0.7),
+        ],
+      ).createShader(Rect.fromCircle(center: center, radius: radius));
+
+    canvas.drawCircle(center, radius, bgPaint);
+
+    final blobPaint = Paint()
+      ..style = PaintingStyle.stroke
+      ..strokeWidth = 2.5
+      ..color = Colors.white.withValues(alpha: 0.25);
+
+    for (int i = 0; i < 5; i++) {
+      final angle = rotation * 2 * math.pi + (i * math.pi * 2 / 5);
+      final path = Path();
+      final blobRadius = radius * (0.55 + i * 0.07);
+      final points = 8;
+
+      for (int j = 0; j <= points; j++) {
+        final t = j / points;
+        final a = angle + t * 2 * math.pi;
+        final r =
+            blobRadius +
+            math.sin(a * 3 + rotation * 2 * math.pi) * radius * 0.08;
+        final x = center.dx + r * math.cos(a);
+        final y = center.dy + r * math.sin(a);
+        if (j == 0) {
+          path.moveTo(x, y);
+        } else {
+          path.lineTo(x, y);
+        }
+      }
+      path.close();
+      canvas.drawPath(path, blobPaint);
+    }
+  }
+
+  @override
+  bool shouldRepaint(_OrbPainter old) => true;
 }

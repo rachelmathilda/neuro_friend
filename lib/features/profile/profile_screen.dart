@@ -24,12 +24,7 @@ class ProfileScreen extends ConsumerWidget {
               ),
             ),
             const SizedBox(height: 16),
-            Image.asset(
-              'assets/images/mascot.png',
-              height: 100,
-              errorBuilder: (_, __, ___) =>
-                  const Icon(Icons.face, size: 80, color: AppColors.primary),
-            ),
+            Image.asset('assets/images/mascot.png', height: 100),
             const SizedBox(height: 16),
             authState.when(
               loading: () => const CircularProgressIndicator(),

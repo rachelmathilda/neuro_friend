@@ -74,33 +74,7 @@ class _Header extends StatelessWidget {
 class _Mascot extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
-    return SizedBox(
-      height: 160,
-      child: Center(
-        child: Image.asset(
-          'assets/images/mascot.png',
-          height: 160,
-          errorBuilder: (_, __, ___) => const _MascotPlaceholder(),
-        ),
-      ),
-    );
-  }
-}
-
-class _MascotPlaceholder extends StatelessWidget {
-  const _MascotPlaceholder();
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      width: 120,
-      height: 120,
-      decoration: BoxDecoration(
-        color: AppColors.primary,
-        shape: BoxShape.circle,
-      ),
-      child: const Icon(Icons.face, size: 64, color: Colors.white),
-    );
+    return Image.asset('assets/images/mascot.png', height: 160);
   }
 }
 
