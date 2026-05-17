@@ -3,35 +3,37 @@ import 'package:flutter/material.dart';
 class AppColors {
   AppColors._();
 
-  static const Color primary = Color(0xFF4A7FD4);
-  static const Color primaryDark = Color(0xFF2E5BA8);
-  static const Color background = Color(0xFFF5F0E8);
+  static const Color bg = Color(0xFFFFFFFF);
+  static const Color bgSoft = Color(0xFFF7F8FA);
   static const Color surface = Color(0xFFFFFFFF);
-  static const Color surfaceVariant = Color(0xFFF5F5F5);
+  static const Color border = Color(0xFFECEEF2);
 
-  static const Color moodHappy = Color(0xFF6BC46A);
-  static const Color moodCalm = Color(0xFFE89BB0);
-  static const Color moodAngry = Color(0xFFBFB8E0);
-  static const Color moodAnxious = Color(0xFFF5A623);
+  static const Color textPrimary = Color(0xFF1B2440);
+  static const Color textSecondary = Color(0xFF6B7390);
+  static const Color textTertiary = Color(0xFFA3A8BC);
 
-  static const Color tagSensory = Color(0xFFFFB3B3);
-  static const Color tagHealth = Color(0xFFFFA500);
-  static const Color tagEat = Color(0xFF6BC46A);
-  static const Color tagJob = Color(0xFFBFB8E0);
+  static const Color cream = Color(0xFFFFF2D0);
+  static const Color navy = Color(0xFF406093);
+  static const Color blue = Color(0xFF4C8CE4);
+  static const Color green = Color(0xFF91D06C);
+  static const Color pink = Color(0xFFFFB2B2);
+  static const Color orange = Color(0xFFFFA02E);
+  static const Color lavender = Color(0xFFE8E0FF);
 
-  static const Color textPrimary = Color(0xFF1A1A1A);
-  static const Color textSecondary = Color(0xFF888888);
-  static const Color textHint = Color(0xFFBBBBBB);
+  static const Color creamSoft = Color(0xFFFFF7E0);
+  static const Color navySoft = Color(0xFFE4EAF3);
+  static const Color blueSoft = Color(0xFFE8F1FE);
+  static const Color greenSoft = Color(0xFFEDF7E5);
+  static const Color pinkSoft = Color(0xFFFFE6E6);
+  static const Color orangeSoft = Color(0xFFFFEED9);
+  static const Color lavenderSoft = Color(0xFFF2EEFF);
 
-  static const Color butter = Color(0xFFFFF3CC);
-  static const Color streakActive = Color(0xFF4A7FD4);
-  static const Color streakToday = Color(0xFF2E3F6F);
-  static const Color streakInactive = Color(0xFFE8E8E8);
+  static const Color tasksAccent = Color(0xFFB66B19);
+  static const Color ideasAccent = Color(0xFF5A4E8A);
+  static const Color worriesAccent = Color(0xFFA85454);
+  static const Color creamAccent = Color(0xFF7A5A1F);
+  static const Color greenAccent = Color(0xFF3F7423);
 
-  static const Color chartYellow = Color(0xFFFFF3CC);
-  static const Color chartPurple = Color(0xFFD4CFEE);
-  static const Color chartRed = Color(0xFFFFB3B3);
-  static const Color chartGreen = Color(0xFF6BC46A);
-  static const Color chartOrange = Color(0xFFF5A623);
-  static const Color border = Color(0xFFE8E8E8);
+  // Legacy aliases (auth/splash screens still reference these).
+  static const Color primary = blue;
 }

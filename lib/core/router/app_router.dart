@@ -2,17 +2,16 @@ import 'package:flutter/material.dart';
 import '../../features/splash/splash_screen.dart';
 import '../../features/auth/register_screen.dart';
 import '../../features/auth/login_screen.dart';
-import '../../features/home/home_screen.dart';
-import '../../features/todos/todos_screen.dart';
-import '../../features/brain_dump/brain_dump_screen.dart';
-import '../../features/ai_voice/ai_voice_screen.dart';
-import '../../features/deep_focus/deep_focus_screen.dart';
-import '../../features/app_usage/app_usage_screen.dart';
-import '../../features/profile/profile_screen.dart';
-import '../../features/recap/scheduler_recap_screen.dart';
-import '../../features/recap/focus_recap_screen.dart';
-import '../../features/recap/social_script_recap_screen.dart';
-import '../../features/recap/sensory_recap_screen.dart';
+import '../../features/shell/main_shell.dart';
+import '../../features/mic/listening_screen.dart';
+import '../../features/mic/intent_screen.dart';
+import '../../features/mic/processing_screen.dart';
+import '../../features/results/brain_result_screen.dart';
+import '../../features/results/emotional_screen.dart';
+import '../../features/results/task_steps_screen.dart';
+import '../../features/results/task_timer_screen.dart';
+import '../../features/results/task_progress_screen.dart';
+import '../widgets/nf_tab_bar.dart';
 
 class AppRoutes {
   AppRoutes._();
@@ -20,17 +19,25 @@ class AppRoutes {
   static const String splash = '/';
   static const String register = '/register';
   static const String login = '/login';
+
+  // Main shell tabs
   static const String home = '/home';
-  static const String todos = '/todos';
-  static const String brainDump = '/brain-dump';
-  static const String aiVoice = '/ai-voice';
-  static const String deepFocus = '/deep-focus';
-  static const String appUsage = '/app-usage';
+  static const String tasks = '/tasks';
+  static const String mic = '/mic';
+  static const String brainDumps = '/brain-dumps';
   static const String profile = '/profile';
-  static const String schedulerRecap = '/recap/scheduler';
-  static const String focusRecap = '/recap/focus';
-  static const String socialScriptRecap = '/recap/social-script';
-  static const String sensoryRecap = '/recap/sensory';
+
+  // Voice flow
+  static const String listening = '/listening';
+  static const String intent = '/intent';
+  static const String processing = '/processing';
+
+  // Result screens
+  static const String brainResult = '/brain-result';
+  static const String emotional = '/emotional';
+  static const String taskSteps = '/task-steps';
+  static const String taskTimer = '/task-timer';
+  static const String taskProgress = '/task-progress';
 }
 
 class AppRouter {
@@ -44,34 +51,45 @@ class AppRouter {
         return _build(const RegisterScreen());
       case AppRoutes.login:
         return _build(const LoginScreen());
+
       case AppRoutes.home:
-        return _build(const HomeScreen());
-      case AppRoutes.todos:
-        return _build(const TodosScreen());
-      case AppRoutes.brainDump:
-        return _build(const BrainDumpScreen());
-      case AppRoutes.aiVoice:
-        return _build(const AiVoiceScreen());
-      case AppRoutes.deepFocus:
-        return _build(const DeepFocusScreen());
-      case AppRoutes.appUsage:
-        return _build(const AppUsageScreen());
+        return _build(const MainShell(initialTab: NFTab.home));
+      case AppRoutes.tasks:
+        return _build(const MainShell(initialTab: NFTab.tasks));
+      case AppRoutes.mic:
+        return _build(const MainShell(initialTab: NFTab.mic));
+      case AppRoutes.brainDumps:
+        return _build(const MainShell(initialTab: NFTab.brainDumps));
       case AppRoutes.profile:
-        return _build(const ProfileScreen());
-      case AppRoutes.schedulerRecap:
-        return _build(const SchedulerRecapScreen());
-      case AppRoutes.focusRecap:
-        return _build(const FocusRecapScreen());
-      case AppRoutes.socialScriptRecap:
-        return _build(const SocialScriptRecapScreen());
-      case AppRoutes.sensoryRecap:
-        return _build(const SensoryRecapScreen());
+        return _build(const MainShell(initialTab: NFTab.profile));
+
+      case AppRoutes.listening:
+        return _build(const ListeningScreen());
+      case AppRoutes.intent:
+        return _build(const IntentScreen());
+      case AppRoutes.processing:
+        return _build(ProcessingScreen(
+          nextRoute: settings.arguments as String?,
+        ));
+
+      case AppRoutes.brainResult:
+        return _build(const BrainResultScreen());
+      case AppRoutes.emotional:
+        return _build(const EmotionalScreen());
+      case AppRoutes.taskSteps:
+        return _build(const TaskStepsScreen());
+      case AppRoutes.taskTimer:
+        return _build(TaskTimerScreen(
+          stepNumber: (settings.arguments as int?) ?? 1,
+        ));
+      case AppRoutes.taskProgress:
+        return _build(const TaskProgressScreen());
+
       default:
         return _build(const SplashScreen());
     }
   }
 
-  static MaterialPageRoute _build(Widget page) {
-    return MaterialPageRoute(builder: (_) => page);
-  }
+  static MaterialPageRoute _build(Widget page) =>
+      MaterialPageRoute(builder: (_) => page);
 }
