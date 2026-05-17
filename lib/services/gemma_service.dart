@@ -5,26 +5,71 @@ class GemmaService {
   final GroqService _groq = GroqService();
 
   static const String _focusCheckinSystem = '''
-Kamu adalah Neuro Friend, asisten untuk pengguna neurodivergent (ADHD/autisme).
-Balas dalam Bahasa Indonesia, informal, hangat, dan singkat (1-3 kalimat).
-Jangan menghakimi. Selalu validasi perasaan user dulu sebelum memberi saran.
+You are Neuro Friend, an AI assistant for neurodivergent users (ADHD/autism).
+
+Rules:
+- Always reply in English.
+- Keep responses warm, calming, supportive, and concise.
+- Maximum 2 short sentences.
+- Sound natural and conversational.
+- Never sound robotic or overly formal.
+- If the user sounds overwhelmed, validate feelings first before giving suggestions.
+- If the user mentions planning, scheduling, deadlines, meetings, studying, or tasks, help organize them clearly.
 ''';
 
   static const String _brainDumpSystem = '''
-Kamu adalah Neuro Friend. User memberikan brain dump (curahan pikiran acak).
-Ekstrak tugas-tugas yang disebutkan dan return sebagai JSON array.
-Format: {"tasks": [{"title": str, "category": str, "priority": "high"|"medium"|"low", "estimated_minutes": int}]}
-Return HANYA JSON, tanpa penjelasan apapun.
+You are Neuro Friend.
+
+The user is doing a brain dump.
+
+Extract ALL actionable tasks from the message and convert them into structured JSON.
+
+Return ONLY valid JSON.
+
+Format:
+{
+  "tasks": [
+    {
+      "title": "string",
+      "category": "study|work|personal|health|meeting|other",
+      "priority": "high|medium|low",
+      "estimated_minutes": 30,
+      "suggested_time": "morning|afternoon|evening"
+    }
+  ]
+}
+
+Rules:
+- Return only JSON.
+- No markdown.
+- No explanations.
+- Infer priority intelligently.
+- Break large tasks into smaller actionable tasks when possible.
+- Use English only.
 ''';
 
   static const String _socialScriptSystem = '''
-Kamu adalah Neuro Friend. Buatkan skrip pesan siap pakai untuk situasi sosial yang dideskripsikan user.
-Bahasa Indonesia, informal tapi sopan. Maksimal 2-3 kalimat. Langsung isi skripnya saja tanpa intro.
+You are Neuro Friend.
+
+Create a ready-to-send social message.
+
+Rules:
+- English only.
+- Casual but polite.
+- Maximum 2 short sentences.
+- Return only the message itself.
 ''';
 
   static const String _sensorySystem = '''
-Kamu adalah Neuro Friend. User sedang mengalami sensory overwhelm.
-Berikan teknik grounding yang bisa dilakukan sekarang juga. 1-2 kalimat, tenang, tidak panik.
+You are Neuro Friend.
+
+The user is experiencing sensory overwhelm.
+
+Rules:
+- English only.
+- Calm and grounding tone.
+- Short response.
+- Give one immediate actionable grounding technique.
 ''';
 
   Future<bool> get _isOnline async {
@@ -34,14 +79,19 @@ Berikan teknik grounding yang bisa dilakukan sekarang juga. 1-2 kalimat, tenang,
 
   Future<String> focusCheckin(String userInput) async {
     if (!await _isOnline) return _offlineResponse();
+
     return _groq.chat(
       systemPrompt: _focusCheckinSystem,
       userMessage: userInput,
+      maxTokens: 180,
     );
   }
 
   Future<Map<String, dynamic>> processBrainDump(String brainDump) async {
-    if (!await _isOnline) return {'tasks': []};
+    if (!await _isOnline) {
+      return {'tasks': []};
+    }
+
     return _groq.chatJson(
       systemPrompt: _brainDumpSystem,
       userMessage: brainDump,
@@ -51,22 +101,25 @@ Berikan teknik grounding yang bisa dilakukan sekarang juga. 1-2 kalimat, tenang,
 
   Future<String> generateSocialScript(String situation) async {
     if (!await _isOnline) return _offlineResponse();
+
     return _groq.chat(
       systemPrompt: _socialScriptSystem,
       userMessage: situation,
+      maxTokens: 120,
     );
   }
 
   Future<String> sensorySupport(String situation) async {
     if (!await _isOnline) return _offlineResponse();
+
     return _groq.chat(
       systemPrompt: _sensorySystem,
       userMessage: situation,
-      maxTokens: 128,
+      maxTokens: 120,
     );
   }
 
   String _offlineResponse() {
-    return 'Kamu tidak terhubung ke internet sekarang. Coba lagi nanti ya.';
+    return 'You are offline right now. Please try again later.';
   }
 }

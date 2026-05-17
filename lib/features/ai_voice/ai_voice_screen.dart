@@ -9,6 +9,8 @@ import '../../providers/focus_provider.dart';
 import '../../services/gemma_service.dart';
 import '../../services/stt_service.dart';
 import '../../services/tts_service.dart';
+import '../../providers/task_provider.dart';
+import '../../data/models/task_model.dart';
 
 class AiVoiceScreen extends ConsumerStatefulWidget {
   const AiVoiceScreen({super.key});
@@ -24,7 +26,10 @@ class _AiVoiceScreenState extends ConsumerState<AiVoiceScreen> {
 
   String _transcript = '';
   String _response = '';
+
   bool _isListening = false;
+  bool _isThinking = false;
+  bool _isSpeaking = false;
 
   @override
   void initState() {
@@ -37,22 +42,25 @@ class _AiVoiceScreenState extends ConsumerState<AiVoiceScreen> {
     if (_isListening) {
       await _stt.stopListening();
 
+      if (!mounted) return;
+
       setState(() {
         _isListening = false;
       });
 
-      if (_transcript.isNotEmpty) {
+      if (_transcript.trim().isNotEmpty) {
         await _process();
       }
     } else {
       setState(() {
         _isListening = true;
         _transcript = '';
-        _response = '';
       });
 
       await _stt.startListening(
         onResult: (text) {
+          if (!mounted) return;
+
           setState(() {
             _transcript = text;
           });
@@ -62,21 +70,130 @@ class _AiVoiceScreenState extends ConsumerState<AiVoiceScreen> {
   }
 
   Future<void> _process() async {
+    if (_transcript.trim().isEmpty) return;
+
+    setState(() {
+      _isThinking = true;
+    });
+
     try {
-      final reply = await _gemma.focusCheckin(_transcript);
+      final brainDump = await _gemma.processBrainDump(_transcript);
 
-      setState(() => _response = reply);
+      final tasks = List<Map<String, dynamic>>.from(brainDump['tasks'] ?? []);
 
-      await _tts.speak(reply);
-    } catch (_) {}
+      if (tasks.isNotEmpty) {
+        final notifier = ref.read(taskProvider.notifier);
+
+        for (final task in tasks) {
+          final now = DateTime.now();
+
+          final suggestedHour = _suggestedHour(task['suggested_time']);
+
+          DateTime startTime = DateTime(
+            now.year,
+            now.month,
+            now.day,
+            suggestedHour,
+          );
+
+          if (startTime.isBefore(now)) {
+            startTime = startTime.add(const Duration(days: 1));
+          }
+
+          final endTime = startTime.add(
+            Duration(minutes: (task['estimated_minutes'] ?? 30) as int),
+          );
+
+          final taskModel = TaskModel(
+            id: DateTime.now().microsecondsSinceEpoch.toString(),
+            title: task['title'] ?? 'Untitled Task',
+
+            category: TaskCategory.values.firstWhere(
+              (e) => e.name == (task['category'] ?? 'other'),
+              orElse: () => TaskCategory.other,
+            ),
+
+            date: startTime,
+
+            startTime: startTime,
+            endTime: endTime,
+
+            status: TaskStatus.notYet,
+          );
+
+          await notifier.addTask(taskModel);
+        }
+
+        final titles = tasks.map((e) => e['title']).join(', ');
+
+        final reply =
+            'I added ${tasks.length} task${tasks.length > 1 ? 's' : ''}: $titles';
+
+        if (!mounted) return;
+
+        setState(() {
+          _response = reply;
+          _isThinking = false;
+          _isSpeaking = true;
+        });
+
+        await _tts.speak(reply);
+      } else {
+        final reply = await _gemma.focusCheckin(_transcript);
+
+        if (!mounted) return;
+
+        setState(() {
+          _response = reply;
+          _isThinking = false;
+          _isSpeaking = true;
+        });
+
+        await _tts.speak(reply);
+      }
+
+      if (!mounted) return;
+
+      setState(() {
+        _isSpeaking = false;
+      });
+    } catch (e) {
+      debugPrint(e.toString());
+
+      if (!mounted) return;
+
+      setState(() {
+        _response = 'Something went wrong.';
+        _isThinking = false;
+        _isSpeaking = false;
+      });
+    }
+  }
+
+  int _suggestedHour(String? value) {
+    switch (value) {
+      case 'morning':
+        return 9;
+      case 'afternoon':
+        return 14;
+      case 'evening':
+        return 19;
+      default:
+        return 10;
+    }
   }
 
   @override
   Widget build(BuildContext context) {
     final focusSession = ref.watch(focusProvider);
 
+    final hasContent =
+        _transcript.trim().isNotEmpty ||
+        _response.trim().isNotEmpty ||
+        _isThinking;
+
     return Scaffold(
-      backgroundColor: const Color(0xFFF4F4F4),
+      backgroundColor: const Color(0xFFF5F5F3),
       body: SafeArea(
         child: Column(
           children: [
@@ -88,6 +205,7 @@ class _AiVoiceScreenState extends ConsumerState<AiVoiceScreen> {
                 fontSize: 18,
                 fontWeight: FontWeight.w100,
                 color: Colors.black87,
+                letterSpacing: 0.3,
               ),
             ),
 
@@ -98,7 +216,6 @@ class _AiVoiceScreenState extends ConsumerState<AiVoiceScreen> {
                 Navigator.pushNamed(context, AppRoutes.deepFocus);
               },
               child: Container(
-                width: double.infinity,
                 height: 54,
                 margin: const EdgeInsets.symmetric(horizontal: 24),
                 decoration: BoxDecoration(
@@ -113,42 +230,70 @@ class _AiVoiceScreenState extends ConsumerState<AiVoiceScreen> {
                   style: AppTextStyles.titleMedium.copyWith(
                     fontSize: 15,
                     fontWeight: FontWeight.w700,
+                    color: Colors.black,
                   ),
                 ),
               ),
             ),
 
-            const SizedBox(height: 38),
+            const SizedBox(height: 34),
 
-            GestureDetector(onTap: _toggleListening, child: const _SiriOrb()),
-
-            const Spacer(),
-
-            Container(
-              width: double.infinity,
-              margin: const EdgeInsets.symmetric(horizontal: 24),
-              padding: const EdgeInsets.symmetric(horizontal: 28, vertical: 26),
-              decoration: BoxDecoration(
-                color: const Color(0xFFF8F8F8),
-                borderRadius: BorderRadius.circular(28),
-              ),
-              child: Text(
-                _transcript.isNotEmpty
-                    ? _transcript
-                    : _response.isNotEmpty
-                    ? _response
-                    : 'Hey.. can you help me to\narrange my schedule?',
-                style: AppTextStyles.bodyMedium.copyWith(
-                  fontSize: 16,
-                  height: 1.4,
-                  color: Colors.black87,
-                ),
+            GestureDetector(
+              onTap: _toggleListening,
+              child: _CurlyOrb(
+                isListening: _isListening,
+                isThinking: _isThinking,
+                isSpeaking: _isSpeaking,
               ),
             ),
 
-            const SizedBox(height: 38),
+            const Spacer(),
+
+            if (hasContent)
+              Container(
+                width: double.infinity,
+                margin: const EdgeInsets.symmetric(horizontal: 24),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 28,
+                  vertical: 24,
+                ),
+                decoration: BoxDecoration(
+                  color: const Color(0xFFF8F8F8),
+                  borderRadius: BorderRadius.circular(28),
+                ),
+                child: _isThinking
+                    ? Row(
+                        children: [
+                          const SizedBox(
+                            width: 18,
+                            height: 18,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          ),
+                          const SizedBox(width: 12),
+                          Text(
+                            'Thinking...',
+                            style: AppTextStyles.bodyMedium.copyWith(
+                              fontSize: 16,
+                              color: AppColors.textSecondary,
+                            ),
+                          ),
+                        ],
+                      )
+                    : Text(
+                        _response.isNotEmpty ? _response : _transcript,
+                        style: AppTextStyles.bodyMedium.copyWith(
+                          fontSize: 16,
+                          height: 1.45,
+                          color: Colors.black87,
+                        ),
+                      ),
+              ),
+
+            SizedBox(height: hasContent ? 32 : 0),
 
             BottomNav(currentIndex: 2),
+
+            const SizedBox(height: 12),
           ],
         ),
       ),
@@ -156,114 +301,183 @@ class _AiVoiceScreenState extends ConsumerState<AiVoiceScreen> {
   }
 }
 
-class _SiriOrb extends StatefulWidget {
-  const _SiriOrb();
+class _CurlyOrb extends StatefulWidget {
+  final bool isListening;
+  final bool isThinking;
+  final bool isSpeaking;
+
+  const _CurlyOrb({
+    required this.isListening,
+    required this.isThinking,
+    required this.isSpeaking,
+  });
 
   @override
-  State<_SiriOrb> createState() => _SiriOrbState();
+  State<_CurlyOrb> createState() => _CurlyOrbState();
 }
 
-class _SiriOrbState extends State<_SiriOrb>
-    with SingleTickerProviderStateMixin {
-  late final AnimationController controller;
+class _CurlyOrbState extends State<_CurlyOrb> with TickerProviderStateMixin {
+  late final AnimationController _rotation;
+  late final AnimationController _wave;
 
   @override
   void initState() {
     super.initState();
 
-    controller = AnimationController(
+    _rotation = AnimationController(
       vsync: this,
-      duration: const Duration(seconds: 10),
+      duration: const Duration(seconds: 18),
+    )..repeat();
+
+    _wave = AnimationController(
+      vsync: this,
+      duration: const Duration(seconds: 5),
     )..repeat();
   }
 
   @override
   void dispose() {
-    controller.dispose();
+    _rotation.dispose();
+    _wave.dispose();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
     return SizedBox(
-      width: 340,
-      height: 340,
+      width: 310,
+      height: 310,
       child: AnimatedBuilder(
-        animation: controller,
-        builder: (context, child) {
-          return CustomPaint(painter: _SiriPainter(controller.value));
+        animation: Listenable.merge([_rotation, _wave]),
+        builder: (_, __) {
+          return CustomPaint(
+            painter: _CurlyOrbPainter(
+              rotation: _rotation.value,
+              wave: _wave.value,
+              isListening: widget.isListening,
+              isThinking: widget.isThinking,
+              isSpeaking: widget.isSpeaking,
+            ),
+          );
         },
       ),
     );
   }
 }
 
-class _SiriPainter extends CustomPainter {
-  final double t;
+class _CurlyOrbPainter extends CustomPainter {
+  final double rotation;
+  final double wave;
 
-  _SiriPainter(this.t);
+  final bool isListening;
+  final bool isThinking;
+  final bool isSpeaking;
+
+  _CurlyOrbPainter({
+    required this.rotation,
+    required this.wave,
+    required this.isListening,
+    required this.isThinking,
+    required this.isSpeaking,
+  });
+
+  double get _waveStrength {
+    if (isSpeaking) return 18;
+    if (isListening) return 14;
+    if (isThinking) return 8;
+    return 10;
+  }
 
   @override
   void paint(Canvas canvas, Size size) {
     final center = Offset(size.width / 2, size.height / 2);
 
-    final rect = Rect.fromCenter(center: center, width: 240, height: 240);
+    final rect = Rect.fromCenter(center: center, width: 250, height: 250);
 
-    final layers = [
-      (const Color(0xFF1F4FB8).withValues(alpha: 0.55), 0.0, 1.0),
-      (const Color(0xFF5B8DEF).withValues(alpha: 0.45), 1.5, 0.92),
-      (const Color(0xFF87B4FF).withValues(alpha: 0.40), 3.0, 0.84),
-      (const Color(0xFFC3DAFF).withValues(alpha: 0.35), 4.5, 0.76),
+    final paints = [
+      Paint()
+        ..shader = SweepGradient(
+          colors: [
+            const Color(0xFF17388E).withValues(alpha: 0.95),
+            const Color(0xFF3D6FE8).withValues(alpha: 0.55),
+            const Color(0xFF9CC1FF).withValues(alpha: 0.22),
+            const Color(0xFF3D6FE8).withValues(alpha: 0.55),
+            const Color(0xFF17388E).withValues(alpha: 0.95),
+          ],
+          stops: const [0.0, 0.28, 0.5, 0.72, 1.0],
+          transform: GradientRotation(rotation * math.pi * 2),
+        ).createShader(rect)
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 18
+        ..blendMode = BlendMode.srcOver,
+
+      Paint()
+        ..shader = SweepGradient(
+          colors: [
+            const Color(0xFFBFD4FF).withValues(alpha: 0.08),
+            const Color(0xFF7EA8FF).withValues(alpha: 0.4),
+            Colors.white.withValues(alpha: 0.9),
+            const Color(0xFF7EA8FF).withValues(alpha: 0.4),
+            const Color(0xFFBFD4FF).withValues(alpha: 0.08),
+          ],
+          stops: const [0.0, 0.32, 0.5, 0.68, 1.0],
+          transform: GradientRotation(-rotation * math.pi * 2),
+        ).createShader(rect)
+        ..style = PaintingStyle.stroke
+        ..strokeWidth = 10
+        ..blendMode = BlendMode.plus,
     ];
 
-    for (final layer in layers) {
-      final color = layer.$1;
-      final phase = layer.$2;
-      final scale = layer.$3;
+    for (int i = 0; i < paints.length; i++) {
+      final path = _buildRingPath(center, 92 + (i * 2), 0.4 + (i * 0.7));
 
-      final paint = Paint()
-        ..color = color
-        ..style = PaintingStyle.stroke
-        ..strokeWidth = 26
-        ..maskFilter = const MaskFilter.blur(BlurStyle.normal, 14);
-
-      final path = Path();
-
-      for (double a = 0; a <= math.pi * 2 + 0.1; a += 0.02) {
-        final wave =
-            math.sin(a * 5 + (t * math.pi * 2) + phase) * 16 +
-            math.cos(a * 3 - (t * math.pi * 2) - phase) * 10;
-
-        final radius = (88 * scale) + wave;
-
-        final x = center.dx + radius * math.cos(a);
-        final y = center.dy + radius * math.sin(a);
-
-        if (a == 0) {
-          path.moveTo(x, y);
-        } else {
-          path.lineTo(x, y);
-        }
-      }
-
-      path.close();
-
-      canvas.drawPath(path, paint);
+      canvas.drawPath(path, paints[i]);
     }
 
-    final glowPaint = Paint()
+    final glow = Paint()
       ..shader = RadialGradient(
         colors: [
-          Colors.white.withValues(alpha: 0.9),
-          Colors.white.withValues(alpha: 0.0),
+          Colors.white.withValues(alpha: 0.55),
+          const Color(0xFF7EA8FF).withValues(alpha: 0.08),
+          Colors.transparent,
         ],
-      ).createShader(rect);
+        stops: const [0.0, 0.45, 1.0],
+      ).createShader(Rect.fromCircle(center: center, radius: 120));
 
-    canvas.drawCircle(center, 62, glowPaint);
+    canvas.drawCircle(center, 110, glow);
+  }
+
+  Path _buildRingPath(Offset center, double radius, double phase) {
+    final path = Path();
+
+    const total = 420;
+
+    for (int i = 0; i <= total; i++) {
+      final t = (i / total) * math.pi * 2;
+
+      final distortion =
+          math.sin((t * 8) + (wave * math.pi * 2) + phase) * _waveStrength +
+          math.cos((t * 5) - (wave * math.pi) + phase) * 7;
+
+      final r = radius + distortion;
+
+      final x = center.dx + r * math.cos(t);
+      final y = center.dy + r * math.sin(t);
+
+      if (i == 0) {
+        path.moveTo(x, y);
+      } else {
+        path.lineTo(x, y);
+      }
+    }
+
+    path.close();
+
+    return path;
   }
 
   @override
-  bool shouldRepaint(covariant _SiriPainter oldDelegate) {
+  bool shouldRepaint(covariant _CurlyOrbPainter oldDelegate) {
     return true;
   }
 }

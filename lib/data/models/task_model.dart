@@ -1,6 +1,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 
-enum TaskStatus { now, notYet, done, delayed }
+enum TaskStatus { now, notYet, done, delayed, incomplete }
 
 enum TaskCategory { sensory, health, eat, job, other }
 

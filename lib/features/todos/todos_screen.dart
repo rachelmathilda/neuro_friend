@@ -286,6 +286,9 @@ class _TaskCard extends StatelessWidget {
 
       case TaskStatus.delayed:
         return 'Delayed';
+
+      case TaskStatus.incomplete:
+        return 'Incomplete';
     }
   }
 

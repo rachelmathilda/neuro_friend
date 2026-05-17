@@ -3,7 +3,7 @@ import 'package:dio/dio.dart';
 
 class GroqService {
   static const String _baseUrl = 'https://api.groq.com/openai/v1';
-  static const String _model = 'meta-llama/llama-4-scout-17b-16e-instruct';
+  static const String _model = 'google/gemma-4-12b-it';
   static const String _apiKey = String.fromEnvironment('GROQ_API_KEY');
 
   final Dio _dio = Dio(

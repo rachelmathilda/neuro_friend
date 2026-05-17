@@ -51,4 +51,8 @@ class AppUsageNotifier extends StateNotifier<AsyncValue<List<AppUsageEntry>>> {
     final entries = (state as AsyncData<List<AppUsageEntry>>).value;
     return entries.fold(Duration.zero, (sum, e) => sum + e.usage);
   }
+
+  static Future<void> checkPermission(DateTime start, DateTime end) async {
+    await AppUsage().getAppUsage(start, end);
+  }
 }
