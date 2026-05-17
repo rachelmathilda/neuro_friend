@@ -15,7 +15,7 @@ class ProcessingScreen extends StatefulWidget {
 }
 
 class _ProcessingScreenState extends State<ProcessingScreen>
-    with SingleTickerProviderStateMixin {
+    with TickerProviderStateMixin {
   late final AnimationController _spin;
   Timer? _timer;
   late final AnimationController _dots;
