@@ -28,26 +28,10 @@ Built for the [Gemma 4 Good Hackathon](https://www.kaggle.com/competitions/gemma
 |---|---|
 | UI | Flutter |
 | On-device AI | Gemma 4 E2B / E4B int4 via Google AI Edge LiteRT |
-| Fine-tuning | Unsloth + TRL QLoRA on 10,000+ ND-specific examples |
 | Speech | ML Kit Speech-to-Text |
 | Voice output | flutter_tts |
 | Local storage | Hive |
-| Auth | Firebase Auth |
 | Cloud fallback | Groq API (RAM < 2GB + internet) |
-
-## Fine-tuning
-Fine-tuned E2B is optimized for consistent 1-3 sentence output, ND-friendly tone in Bahasa Indonesia, and strict JSON schema for Brain Dump parsing.
-
-Model fine-tuned using [Unsloth](https://github.com/unslothai/unsloth) with QLoRA (rank 16) on a custom dataset of 10,000+ examples across 5 features, generated in Bahasa Indonesia and manually reviewed for ND-appropriate tone and format consistency.
-
-| Feature | Examples |
-|---|---|
-| Focus Check-in | 2,000 |
-| Social Script Helper | 2,000 |
-| Schedule Manager | 2,000 |
-| Sensory Overwhelm | 2,000 |
-| Deep Focus Warning | 2,000 |
-
 
 ## Getting Started
 
