@@ -9,14 +9,14 @@ class GroqService {
       'https://generativelanguage.googleapis.com/v1beta';
 
   // ✅ Primary model saja — fallback manual di bawah
-  static const String _primaryModel = 'gemma-4-26b-a4b-it';
-  static const String _fallbackModel = 'gemma-4-31b-it';
+  static const String _primaryModel = 'gemma-4-31b-it';
+  static const String _fallbackModel = 'gemma-4-26b-a4b-it';
 
   final Dio _dio = Dio(
     BaseOptions(
       baseUrl: _baseUrl,
       connectTimeout: const Duration(seconds: 15),
-      receiveTimeout: const Duration(seconds: 30),
+      receiveTimeout: const Duration(seconds: 60),
     ),
   );
 

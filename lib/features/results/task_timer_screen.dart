@@ -28,25 +28,30 @@ class _TaskTimerScreenState extends State<TaskTimerScreen> {
     super.didChangeDependencies();
     if (!_loaded) {
       _loaded = true;
-      final args = ModalRoute.of(context)?.settings.arguments;
+      final rawArgs = ModalRoute.of(context)?.settings.arguments;
       final int stepNumber;
       final List<TaskStepModel> steps;
 
-      if (args is Map<String, dynamic>) {
-        stepNumber = (args['stepNumber'] as int?) ?? 1;
-        steps =
-            (args['steps'] as List<TaskStepModel>?) ??
-            TaskStepModel.fallback('');
+      if (rawArgs is Map) {
+        final args = Map<String, dynamic>.from(rawArgs);
+        stepNumber = (args['stepNumber'] as num?)?.toInt() ?? 1;
+        final rawSteps = args['steps'];
+        steps = rawSteps is List
+            ? rawSteps.whereType<TaskStepModel>().toList()
+            : <TaskStepModel>[];
       } else {
-        stepNumber = (args as int?) ?? 1;
-        steps = TaskStepModel.fallback('');
+        stepNumber = (rawArgs as int?) ?? 1;
+        steps = const <TaskStepModel>[];
       }
 
-      _totalSteps = steps.length;
-      _step = steps.firstWhere(
+      final resolvedSteps =
+          steps.isEmpty ? TaskStepModel.fallback('') : steps;
+      _totalSteps = resolvedSteps.length;
+      _step = resolvedSteps.firstWhere(
         (s) => s.n == stepNumber,
-        orElse: () => steps.first,
+        orElse: () => resolvedSteps.first,
       );
+
       _total = _step.mins * 60;
       _secs = _total;
 
@@ -185,13 +190,13 @@ class _TaskTimerScreenState extends State<TaskTimerScreen> {
                       NFButton(
                         label: 'Done, next!',
                         small: true,
-                        onPressed: () => Navigator.pop(context),
+                        onPressed: () => Navigator.pop(context, true),
                       ),
                       NFButton(
                         label: 'Skip',
                         small: true,
                         variant: NFButtonVariant.ghost,
-                        onPressed: () => Navigator.pop(context),
+                        onPressed: () => Navigator.pop(context, false),
                       ),
                       NFButton(
                         label: "I'm stuck",

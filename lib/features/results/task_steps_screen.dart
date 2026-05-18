@@ -154,8 +154,10 @@ class _TaskStepsScreenState extends State<TaskStepsScreen> {
                         context,
                         AppRoutes.taskTimer,
                         arguments: {'stepNumber': step.n, 'steps': _steps},
-                      ).then((_) {
-                        setState(() => _completed.add(step.n));
+                      ).then((result) {
+                        if (result == true) {
+                          setState(() => _completed.add(step.n));
+                        }
                       }),
                 );
               },
