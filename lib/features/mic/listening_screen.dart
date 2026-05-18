@@ -6,6 +6,7 @@ import '../../core/router/app_router.dart';
 import '../../core/widgets/nf_mascot.dart';
 import '../../core/widgets/nf_mic_button.dart';
 import '../../core/widgets/nf_screen.dart';
+import '../../services/stt_service.dart';
 
 class ListeningScreen extends StatefulWidget {
   const ListeningScreen({super.key});
@@ -15,9 +16,11 @@ class ListeningScreen extends StatefulWidget {
 }
 
 class _ListeningScreenState extends State<ListeningScreen> {
+  final SttService _stt = SttService();
   int _secs = 0;
   Timer? _ticker;
-  Timer? _auto;
+  String _transcript = '';
+  bool _starting = true;
 
   @override
   void initState() {
@@ -25,19 +28,55 @@ class _ListeningScreenState extends State<ListeningScreen> {
     _ticker = Timer.periodic(const Duration(seconds: 1), (_) {
       if (mounted) setState(() => _secs++);
     });
-    _auto = Timer(const Duration(milliseconds: 4200), _next);
+    _start();
   }
 
-  void _next() {
+  Future<void> _start() async {
+    final ok = await _stt.init();
+    if (!mounted) return;
+    if (!ok) {
+      setState(() => _starting = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Mic unavailable. Check microphone permission.')),
+      );
+      return;
+    }
+    await _stt.startListening(
+      onResult: (text, _) {
+        if (!mounted) return;
+        setState(() => _transcript = text);
+      },
+    );
+    if (mounted) setState(() => _starting = false);
+  }
+
+  Future<void> _finish() async {
     _ticker?.cancel();
-    _auto?.cancel();
-    if (mounted) Navigator.pushReplacementNamed(context, AppRoutes.intent);
+    await _stt.stopListening();
+    if (!mounted) return;
+    final text = _transcript.trim();
+    if (text.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("Didn't catch anything. Try again.")),
+      );
+      // restart capture
+      _ticker = Timer.periodic(const Duration(seconds: 1), (_) {
+        if (mounted) setState(() => _secs++);
+      });
+      _start();
+      return;
+    }
+    Navigator.pushReplacementNamed(
+      context,
+      AppRoutes.intent,
+      arguments: text,
+    );
   }
 
   @override
   void dispose() {
     _ticker?.cancel();
-    _auto?.cancel();
+    _stt.stopListening();
     super.dispose();
   }
 
@@ -52,20 +91,32 @@ class _ListeningScreenState extends State<ListeningScreen> {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Text('Listening…',
-                style: TextStyle(fontSize: 13, color: AppColors.textSecondary)),
+            Text(_starting ? 'Preparing mic…' : 'Listening…',
+                style: const TextStyle(fontSize: 13, color: AppColors.textSecondary)),
             const SizedBox(height: 10),
             const NFMascot(size: 90, mood: MascotMood.listening),
             const SizedBox(height: 8),
             Container(
-              width: 240,
-              height: 110,
+              width: 260,
+              constraints: const BoxConstraints(minHeight: 110),
               decoration: BoxDecoration(
                 color: AppColors.blueSoft,
                 borderRadius: BorderRadius.circular(28),
               ),
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
               alignment: Alignment.center,
-              child: const _Waveform(),
+              child: _transcript.isEmpty
+                  ? const _Waveform()
+                  : Text(
+                      _transcript,
+                      textAlign: TextAlign.center,
+                      maxLines: 4,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                          fontSize: 13.5,
+                          height: 1.4,
+                          color: AppColors.textPrimary),
+                    ),
             ),
             const SizedBox(height: 12),
             Text('$mm:$ss',
@@ -75,7 +126,7 @@ class _ListeningScreenState extends State<ListeningScreen> {
                     letterSpacing: 0.5,
                     color: AppColors.textSecondary)),
             const SizedBox(height: 22),
-            NFMicButton(recording: true, onTap: _next),
+            NFMicButton(recording: true, onTap: _finish),
             const Padding(
               padding: EdgeInsets.only(top: 0),
               child: Text('Tap to finish',

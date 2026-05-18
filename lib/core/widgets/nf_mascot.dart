@@ -34,12 +34,16 @@ class _MascotPainter extends CustomPainter {
     _rrect(canvas, p(96, 46), 22 * sx, 34 * sy, 11 * sx, ear);
 
     // head circle r44 at (60,58)
-    canvas.drawCircle(p(60, 58), 44 * sx, Paint()..color = const Color(0xFF4C8CE4));
+    canvas.drawCircle(
+      p(60, 58),
+      44 * sx,
+      Paint()..color = const Color(0xFF4C8CE4),
+    );
 
     // highlight ellipse
     canvas.drawOval(
       Rect.fromCenter(center: p(44, 42), width: 28 * sx, height: 18 * sy),
-      Paint()..color = Colors.white.withOpacity(0.18),
+      Paint()..color = Colors.white.withValues(alpha: 0.18),
     );
 
     // antenna line + dot
@@ -48,7 +52,11 @@ class _MascotPainter extends CustomPainter {
       ..strokeWidth = 3 * sx
       ..strokeCap = StrokeCap.round;
     canvas.drawLine(p(60, 14), p(60, 6), antennaPaint);
-    canvas.drawCircle(p(60, 5), 3.5 * sx, Paint()..color = const Color(0xFF2E5290));
+    canvas.drawCircle(
+      p(60, 5),
+      3.5 * sx,
+      Paint()..color = const Color(0xFF2E5290),
+    );
 
     // eyes
     final eye = Paint()..color = const Color(0xFF1B2440);
@@ -67,12 +75,22 @@ class _MascotPainter extends CustomPainter {
     if (mood == MascotMood.happy) {
       final path = Path()
         ..moveTo(p(50, 74).dx, p(50, 74).dy)
-        ..quadraticBezierTo(p(60, 84).dx, p(60, 84).dy, p(70, 74).dx, p(70, 74).dy);
+        ..quadraticBezierTo(
+          p(60, 84).dx,
+          p(60, 84).dy,
+          p(70, 74).dx,
+          p(70, 74).dy,
+        );
       canvas.drawPath(path, mouthPaint);
     } else if (mood == MascotMood.calm) {
       final path = Path()
         ..moveTo(p(52, 76).dx, p(52, 76).dy)
-        ..quadraticBezierTo(p(60, 80).dx, p(60, 80).dy, p(68, 76).dx, p(68, 76).dy);
+        ..quadraticBezierTo(
+          p(60, 80).dx,
+          p(60, 80).dy,
+          p(68, 76).dx,
+          p(68, 76).dy,
+        );
       canvas.drawPath(path, mouthPaint);
     } else {
       canvas.drawOval(

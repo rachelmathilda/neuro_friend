@@ -1,37 +1,55 @@
 import 'package:flutter/material.dart';
 import '../../core/constants/app_colors.dart';
+import '../../data/models/task_step_model.dart';
 import '../../core/router/app_router.dart';
 import '../../core/widgets/nf_button.dart';
 import '../../core/widgets/nf_screen.dart';
 
-class TaskStep {
-  final int n;
-  final String title, hint;
-  final int mins;
-  const TaskStep(this.n, this.title, this.mins, this.hint);
+class TaskStepsScreen extends StatefulWidget {
+  const TaskStepsScreen({super.key});
+
+  @override
+  State<TaskStepsScreen> createState() => _TaskStepsScreenState();
 }
 
-const taskSteps = <TaskStep>[
-  TaskStep(1, 'Open PowerPoint, pick a clean template', 2,
-      "Don't start from scratch. Any template will do."),
-  TaskStep(2, 'Write 10 slide titles', 5, 'Titles only — no content yet.'),
-  TaskStep(3, 'Fill slides 1–3: key data', 10,
-      'Copy-paste numbers from the spreadsheet.'),
-  TaskStep(4, 'Fill slides 4–7: analysis & charts', 15,
-      'Add 2–3 simple charts.'),
-  TaskStep(5, 'Fill slides 8–10: conclusion', 10,
-      '3 challenge points, 3 plan points.'),
-  TaskStep(6, 'Review & polish', 5,
-      "Check typos. Don't be a perfectionist — 80% is enough!"),
-];
+class _TaskStepsScreenState extends State<TaskStepsScreen> {
+  List<TaskStepModel> _steps = [];
+  String _taskTitle = '';
+  int _totalMinutes = 0;
+  String _firstMove = '';
+  final Set<int> _completed = {};
+  bool _loaded = false;
 
-class TaskStepsScreen extends StatelessWidget {
-  final List<int> completed;
-  const TaskStepsScreen({super.key, this.completed = const []});
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+    if (!_loaded) {
+      _loaded = true;
+      final rawArgs = ModalRoute.of(context)?.settings.arguments;
+      // ignore: avoid_print
+      print('TaskStepsScreen args type: ${rawArgs.runtimeType}');
+      if (rawArgs is Map) {
+        final args = Map<String, dynamic>.from(rawArgs);
+        final rawSteps = args['steps'];
+        if (rawSteps is List) {
+          _steps = rawSteps.whereType<TaskStepModel>().toList();
+        }
+        _taskTitle = (args['taskTitle'] as String?) ?? '';
+        _totalMinutes = (args['totalMinutes'] as num?)?.toInt() ?? 0;
+        _firstMove = (args['firstMove'] as String?) ?? '';
+      }
+      if (_steps.isEmpty) {
+        _steps = TaskStepModel.fallback(_taskTitle);
+        _totalMinutes = _steps.fold(0, (sum, s) => sum + s.mins);
+      }
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
-    final done = completed.length;
+    final done = _completed.length;
+    final total = _steps.length;
+
     return NFScreen(
       hideTabs: true,
       padding: const EdgeInsets.only(top: 0),
@@ -44,52 +62,102 @@ class TaskStepsScreen extends StatelessWidget {
               color: AppColors.creamSoft,
               borderRadius: BorderRadius.circular(16),
             ),
-            padding:
-                const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+            padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
             child: Row(
               children: [
-                const Expanded(
+                Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text('"Make Q2 presentation"',
-                          style: TextStyle(
-                              fontSize: 14,
-                              fontWeight: FontWeight.w700,
-                              color: AppColors.textPrimary)),
-                      SizedBox(height: 2),
-                      Text('6 steps · ≈47 min',
-                          style: TextStyle(
-                              fontSize: 12, color: AppColors.textSecondary)),
+                      Text(
+                        '"$_taskTitle"',
+                        style: const TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w700,
+                          color: AppColors.textPrimary,
+                        ),
+                        maxLines: 2,
+                        overflow: TextOverflow.ellipsis,
+                      ),
+                      const SizedBox(height: 2),
+                      Text(
+                        '$total steps · ≈$_totalMinutes min',
+                        style: const TextStyle(
+                          fontSize: 12,
+                          color: AppColors.textSecondary,
+                        ),
+                      ),
                     ],
                   ),
                 ),
                 Container(
-                  padding:
-                      const EdgeInsets.symmetric(horizontal: 10, vertical: 5),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 10,
+                    vertical: 5,
+                  ),
                   decoration: BoxDecoration(
                     color: AppColors.cream,
                     borderRadius: BorderRadius.circular(999),
                   ),
-                  child: Text('$done/6',
-                      style: const TextStyle(
-                          fontSize: 12,
-                          fontWeight: FontWeight.w700,
-                          color: AppColors.creamAccent)),
+                  child: Text(
+                    '$done/$total',
+                    style: const TextStyle(
+                      fontSize: 12,
+                      fontWeight: FontWeight.w700,
+                      color: AppColors.creamAccent,
+                    ),
+                  ),
                 ),
               ],
             ),
           ),
+          if (_firstMove.isNotEmpty) ...[
+            const SizedBox(height: 10),
+            Container(
+              decoration: BoxDecoration(
+                color: AppColors.orangeSoft,
+                borderRadius: BorderRadius.circular(12),
+              ),
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 10),
+              child: Row(
+                children: [
+                  const Text('⚡', style: TextStyle(fontSize: 16)),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      'Start here: $_firstMove',
+                      style: const TextStyle(
+                        fontSize: 12.5,
+                        fontWeight: FontWeight.w600,
+                        color: AppColors.tasksAccent,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
           const SizedBox(height: 14),
           Expanded(
             child: ListView.separated(
               padding: const EdgeInsets.only(bottom: 8),
-              itemCount: taskSteps.length,
+              itemCount: _steps.length,
               separatorBuilder: (_, __) => const SizedBox(height: 8),
               itemBuilder: (ctx, i) {
-                final step = taskSteps[i];
-                final isDone = completed.contains(step.n);
-                return _StepCard(step: step, completed: isDone);
+                final step = _steps[i];
+                final isDone = _completed.contains(step.n);
+                return _StepCard(
+                  step: step,
+                  completed: isDone,
+                  onStartTap: () =>
+                      Navigator.pushNamed(
+                        context,
+                        AppRoutes.taskTimer,
+                        arguments: {'stepNumber': step.n, 'steps': _steps},
+                      ).then((_) {
+                        setState(() => _completed.add(step.n));
+                      }),
+                );
               },
             ),
           ),
@@ -100,15 +168,15 @@ class TaskStepsScreen extends StatelessWidget {
                 color: AppColors.greenSoft,
                 borderRadius: BorderRadius.circular(14),
               ),
-              padding:
-                  const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
+              padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
               alignment: Alignment.center,
               child: Text(
-                '🎯 $done/6 done — you\'re on fire!',
+                '🎯 $done/$total done — you\'re on fire!',
                 style: const TextStyle(
-                    fontSize: 13,
-                    fontWeight: FontWeight.w700,
-                    color: AppColors.greenAccent),
+                  fontSize: 13,
+                  fontWeight: FontWeight.w700,
+                  color: AppColors.greenAccent,
+                ),
               ),
             )
           else
@@ -116,10 +184,11 @@ class TaskStepsScreen extends StatelessWidget {
               '"Start at step 1? Just 2 minutes!"',
               textAlign: TextAlign.center,
               style: TextStyle(
-                  fontSize: 13,
-                  fontWeight: FontWeight.w600,
-                  fontStyle: FontStyle.italic,
-                  color: AppColors.tasksAccent),
+                fontSize: 13,
+                fontWeight: FontWeight.w600,
+                fontStyle: FontStyle.italic,
+                color: AppColors.tasksAccent,
+              ),
             ),
         ],
       ),
@@ -128,15 +197,22 @@ class TaskStepsScreen extends StatelessWidget {
 }
 
 class _StepCard extends StatelessWidget {
-  final TaskStep step;
+  final TaskStepModel step;
   final bool completed;
-  const _StepCard({required this.step, required this.completed});
+  final VoidCallback onStartTap;
+
+  const _StepCard({
+    required this.step,
+    required this.completed,
+    required this.onStartTap,
+  });
 
   @override
   Widget build(BuildContext context) {
     final bg = completed ? AppColors.greenSoft : AppColors.surface;
-    final borderColor =
-        completed ? AppColors.green.withOpacity(0.5) : AppColors.border;
+    final borderColor = completed
+        ? AppColors.green.withValues(alpha: 0.5)
+        : AppColors.border;
     return Container(
       decoration: BoxDecoration(
         color: bg,
@@ -161,13 +237,19 @@ class _StepCard extends StatelessWidget {
                   ),
                   alignment: Alignment.center,
                   child: completed
-                      ? const Icon(Icons.check_rounded,
-                          size: 16, color: Colors.white)
-                      : Text('${step.n}',
+                      ? const Icon(
+                          Icons.check_rounded,
+                          size: 16,
+                          color: Colors.white,
+                        )
+                      : Text(
+                          '${step.n}',
                           style: const TextStyle(
-                              fontSize: 13,
-                              fontWeight: FontWeight.w800,
-                              color: AppColors.tasksAccent)),
+                            fontSize: 13,
+                            fontWeight: FontWeight.w800,
+                            color: AppColors.tasksAccent,
+                          ),
+                        ),
                 ),
                 const SizedBox(width: 12),
                 Expanded(
@@ -183,26 +265,33 @@ class _StepCard extends StatelessWidget {
                           decoration: completed
                               ? TextDecoration.lineThrough
                               : TextDecoration.none,
-                          decorationColor:
-                              AppColors.textPrimary.withOpacity(0.4),
+                          decorationColor: AppColors.textPrimary.withValues(
+                            alpha: 0.4,
+                          ),
                         ),
                       ),
                       const SizedBox(height: 3),
-                      Text(step.hint,
-                          style: const TextStyle(
-                              fontSize: 11.5,
-                              height: 1.4,
-                              color: AppColors.textTertiary)),
+                      Text(
+                        step.hint,
+                        style: const TextStyle(
+                          fontSize: 11.5,
+                          height: 1.4,
+                          color: AppColors.textTertiary,
+                        ),
+                      ),
                     ],
                   ),
                 ),
                 Padding(
                   padding: const EdgeInsets.only(top: 4),
-                  child: Text('${step.mins} min',
-                      style: const TextStyle(
-                          fontSize: 11,
-                          fontWeight: FontWeight.w600,
-                          color: AppColors.textTertiary)),
+                  child: Text(
+                    '${step.mins} min',
+                    style: const TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w600,
+                      color: AppColors.textTertiary,
+                    ),
+                  ),
                 ),
               ],
             ),
@@ -212,9 +301,7 @@ class _StepCard extends StatelessWidget {
                 child: NFButton(
                   label: 'Start this step',
                   variant: NFButtonVariant.pillSmall,
-                  onPressed: () => Navigator.pushNamed(
-                      context, AppRoutes.taskTimer,
-                      arguments: step.n),
+                  onPressed: onStartTap,
                 ),
               ),
           ],

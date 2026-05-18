@@ -28,13 +28,13 @@ class NFTabBar extends StatelessWidget {
           borderRadius: BorderRadius.circular(24),
           boxShadow: [
             BoxShadow(
-              color: const Color(0xFF1C2440).withOpacity(0.10),
+              color: const Color(0xFF1C2440).withValues(alpha: 0.10),
               blurRadius: 28,
               offset: const Offset(0, 8),
             ),
           ],
           border: Border.all(
-            color: const Color(0xFF1C2440).withOpacity(0.04),
+            color: const Color(0xFF1C2440).withValues(alpha: 0.04),
             width: 1,
           ),
         ),

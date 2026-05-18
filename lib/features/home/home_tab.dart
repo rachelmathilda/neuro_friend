@@ -1,6 +1,5 @@
 import 'package:flutter/material.dart';
 import '../../core/constants/app_colors.dart';
-import '../../core/router/app_router.dart';
 import '../../core/widgets/nf_mascot.dart';
 import '../../core/widgets/nf_screen.dart';
 import '../../core/widgets/nf_tab_bar.dart';
@@ -15,8 +14,8 @@ class HomeTab extends StatelessWidget {
       tabActive: NFTab.home,
       onTab: onTab,
       background: AppColors.bgSoft,
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
+      child: ListView(
+        padding: const EdgeInsets.only(bottom: 8),
         children: [
           _Greeting(),
           const SizedBox(height: 14),
@@ -28,45 +27,6 @@ class HomeTab extends StatelessWidget {
           const SizedBox(height: 18),
           const _SectionLabel('Recent activity'),
           const SizedBox(height: 10),
-          Expanded(
-            child: ListView(
-              padding: const EdgeInsets.only(bottom: 8),
-              children: [
-                _RecentRow(
-                  title: 'Brain dump sorted',
-                  meta: '2 tasks · 1 idea · 1 event · 1 worry',
-                  time: '09:42',
-                  color: AppColors.ideasAccent,
-                  bg: AppColors.lavenderSoft,
-                  icon: Icons.psychology_alt_outlined,
-                  onTap: () =>
-                      Navigator.pushNamed(context, AppRoutes.brainResult),
-                ),
-                const SizedBox(height: 8),
-                _RecentRow(
-                  title: 'Task Coach started',
-                  meta: 'Make Q2 presentation · 2/6 done',
-                  time: '08:50',
-                  color: AppColors.tasksAccent,
-                  bg: AppColors.orangeSoft,
-                  icon: Icons.checklist_rounded,
-                  onTap: () =>
-                      Navigator.pushNamed(context, AppRoutes.taskSteps),
-                ),
-                const SizedBox(height: 8),
-                _RecentRow(
-                  title: 'Emotional check-in',
-                  meta: 'Overwhelm + task paralysis',
-                  time: 'Yesterday',
-                  color: AppColors.worriesAccent,
-                  bg: AppColors.pinkSoft,
-                  icon: Icons.favorite_outline_rounded,
-                  onTap: () =>
-                      Navigator.pushNamed(context, AppRoutes.emotional),
-                ),
-              ],
-            ),
-          ),
         ],
       ),
     );
@@ -83,14 +43,19 @@ class _Greeting extends StatelessWidget {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: const [
-              Text('Good morning,',
-                  style: TextStyle(fontSize: 13, color: AppColors.textSecondary)),
+              Text(
+                'Good morning,',
+                style: TextStyle(fontSize: 13, color: AppColors.textSecondary),
+              ),
               SizedBox(height: 2),
-              Text('Hi, friend',
-                  style: TextStyle(
-                      fontSize: 20,
-                      fontWeight: FontWeight.w800,
-                      color: AppColors.textPrimary)),
+              Text(
+                'Hi, friend',
+                style: TextStyle(
+                  fontSize: 20,
+                  fontWeight: FontWeight.w800,
+                  color: AppColors.textPrimary,
+                ),
+              ),
             ],
           ),
         ),
@@ -101,8 +66,11 @@ class _Greeting extends StatelessWidget {
             color: AppColors.cream,
             shape: BoxShape.circle,
           ),
-          child: const Icon(Icons.notifications_outlined,
-              size: 18, color: AppColors.navy),
+          child: const Icon(
+            Icons.notifications_outlined,
+            size: 18,
+            color: AppColors.navy,
+          ),
         ),
       ],
     );
@@ -125,7 +93,7 @@ class _HeroCard extends StatelessWidget {
         borderRadius: BorderRadius.circular(22),
         boxShadow: [
           BoxShadow(
-            color: AppColors.blue.withOpacity(0.28),
+            color: AppColors.blue.withValues(alpha: 0.28),
             blurRadius: 28,
             offset: const Offset(0, 12),
           ),
@@ -143,18 +111,20 @@ class _HeroCard extends StatelessWidget {
                 const Text(
                   'A lot on your mind?',
                   style: TextStyle(
-                      color: Colors.white,
-                      fontSize: 14,
-                      fontWeight: FontWeight.w700,
-                      height: 1.3),
+                    color: Colors.white,
+                    fontSize: 14,
+                    fontWeight: FontWeight.w700,
+                    height: 1.3,
+                  ),
                 ),
                 const SizedBox(height: 4),
                 Text(
                   "Tap the mic, say anything. I'll help sort it.",
                   style: TextStyle(
-                      color: Colors.white.withOpacity(0.85),
-                      fontSize: 12,
-                      height: 1.4),
+                    color: Colors.white.withValues(alpha: 0.85),
+                    fontSize: 12,
+                    height: 1.4,
+                  ),
                 ),
                 const SizedBox(height: 10),
                 Material(
@@ -164,19 +134,27 @@ class _HeroCard extends StatelessWidget {
                     onTap: onStart,
                     borderRadius: BorderRadius.circular(999),
                     child: const Padding(
-                      padding:
-                          EdgeInsets.symmetric(horizontal: 14, vertical: 8),
+                      padding: EdgeInsets.symmetric(
+                        horizontal: 14,
+                        vertical: 8,
+                      ),
                       child: Row(
                         mainAxisSize: MainAxisSize.min,
                         children: [
-                          Icon(Icons.mic_rounded,
-                              size: 14, color: AppColors.navy),
+                          Icon(
+                            Icons.mic_rounded,
+                            size: 14,
+                            color: AppColors.navy,
+                          ),
                           SizedBox(width: 6),
-                          Text('Start talking',
-                              style: TextStyle(
-                                  color: AppColors.navy,
-                                  fontWeight: FontWeight.w700,
-                                  fontSize: 12.5)),
+                          Text(
+                            'Start talking',
+                            style: TextStyle(
+                              color: AppColors.navy,
+                              fontWeight: FontWeight.w700,
+                              fontSize: 12.5,
+                            ),
+                          ),
                         ],
                       ),
                     ),
@@ -194,14 +172,16 @@ class _HeroCard extends StatelessWidget {
 class _SectionLabel extends StatelessWidget {
   final String text;
   const _SectionLabel(this.text);
+
   @override
   Widget build(BuildContext context) => Text(
-        text,
-        style: const TextStyle(
-            fontSize: 13,
-            fontWeight: FontWeight.w700,
-            color: AppColors.textSecondary),
-      );
+    text,
+    style: const TextStyle(
+      fontSize: 13,
+      fontWeight: FontWeight.w700,
+      color: AppColors.textSecondary,
+    ),
+  );
 }
 
 class _FeaturesGrid extends StatelessWidget {
@@ -216,14 +196,14 @@ class _FeaturesGrid extends StatelessWidget {
       physics: const NeverScrollableScrollPhysics(),
       crossAxisSpacing: 10,
       mainAxisSpacing: 10,
-      childAspectRatio: 2.05,
+      childAspectRatio: 1.7,
       children: [
         _FeatureTile(
           bg: AppColors.lavenderSoft,
           fg: AppColors.ideasAccent,
           icon: Icons.psychology_alt_outlined,
           title: 'Brain Dump',
-          meta: '12 entries',
+          meta: 'Voice to categories',
           onTap: () => onTab(NFTab.brainDumps),
         ),
         _FeatureTile(
@@ -231,7 +211,7 @@ class _FeaturesGrid extends StatelessWidget {
           fg: AppColors.tasksAccent,
           icon: Icons.checklist_rounded,
           title: 'Task Coach',
-          meta: '3 active',
+          meta: 'Micro-step breakdown',
           onTap: () => onTab(NFTab.tasks),
         ),
         _FeatureTile(
@@ -239,15 +219,15 @@ class _FeaturesGrid extends StatelessWidget {
           fg: AppColors.worriesAccent,
           icon: Icons.favorite_outline_rounded,
           title: 'Check-in',
-          meta: 'Via voice',
+          meta: 'Emotional support',
           onTap: () => onTab(NFTab.mic),
         ),
         _FeatureTile(
           bg: AppColors.creamSoft,
           fg: AppColors.creamAccent,
           icon: Icons.auto_awesome_outlined,
-          title: 'Smart sort',
-          meta: 'Auto-detect',
+          title: 'Smart Sort',
+          meta: 'Auto-detect intent',
           onTap: () => onTab(NFTab.mic),
         ),
       ],
@@ -288,7 +268,7 @@ class _FeatureTile extends StatelessWidget {
                 width: 34,
                 height: 34,
                 decoration: BoxDecoration(
-                  color: Colors.white.withOpacity(0.55),
+                  color: Colors.white.withValues(alpha: 0.55),
                   borderRadius: BorderRadius.circular(10),
                 ),
                 child: Icon(icon, size: 18, color: fg),
@@ -296,94 +276,27 @@ class _FeatureTile extends StatelessWidget {
               Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(title,
-                      style: const TextStyle(
-                          fontSize: 13.5,
-                          fontWeight: FontWeight.w800,
-                          color: AppColors.textPrimary)),
+                  Text(
+                    title,
+                    style: const TextStyle(
+                      fontSize: 13.5,
+                      fontWeight: FontWeight.w800,
+                      color: AppColors.textPrimary,
+                    ),
+                  ),
                   const SizedBox(height: 2),
-                  Text(meta,
-                      style: TextStyle(
-                          fontSize: 11.5,
-                          fontWeight: FontWeight.w600,
-                          color: fg)),
-                ],
-              ),
-            ],
-          ),
-        ),
-      ),
-    );
-  }
-}
-
-class _RecentRow extends StatelessWidget {
-  final String title, meta, time;
-  final Color color, bg;
-  final IconData icon;
-  final VoidCallback onTap;
-
-  const _RecentRow({
-    required this.title,
-    required this.meta,
-    required this.time,
-    required this.color,
-    required this.bg,
-    required this.icon,
-    required this.onTap,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return Material(
-      color: AppColors.surface,
-      shape: RoundedRectangleBorder(
-        side: const BorderSide(color: AppColors.border),
-        borderRadius: BorderRadius.circular(14),
-      ),
-      child: InkWell(
-        onTap: onTap,
-        borderRadius: BorderRadius.circular(14),
-        child: Padding(
-          padding: const EdgeInsets.symmetric(horizontal: 14, vertical: 12),
-          child: Row(
-            children: [
-              Container(
-                width: 36,
-                height: 36,
-                decoration: BoxDecoration(
-                  color: bg,
-                  borderRadius: BorderRadius.circular(10),
-                ),
-                child: Icon(icon, size: 16, color: color),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text(title,
-                        style: const TextStyle(
-                            fontSize: 13,
-                            fontWeight: FontWeight.w700,
-                            color: AppColors.textPrimary)),
-                    const SizedBox(height: 2),
-                    Text(meta,
-                        maxLines: 1,
-                        overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(
-                            fontSize: 11.5,
-                            color: AppColors.textSecondary,
-                            height: 1.4)),
-                  ],
-                ),
-              ),
-              const SizedBox(width: 8),
-              Text(time,
-                  style: const TextStyle(
+                  Text(
+                    meta,
+                    maxLines: 1,
+                    overflow: TextOverflow.ellipsis,
+                    style: TextStyle(
                       fontSize: 11,
                       fontWeight: FontWeight.w600,
-                      color: AppColors.textTertiary)),
+                      color: fg,
+                    ),
+                  ),
+                ],
+              ),
             ],
           ),
         ),

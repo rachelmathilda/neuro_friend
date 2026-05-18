@@ -1,39 +1,99 @@
 import 'dart:convert';
 import 'package:dio/dio.dart';
+import 'package:flutter_dotenv/flutter_dotenv.dart';
+import 'package:flutter/foundation.dart';
 
 class GroqService {
-  static const String _baseUrl = 'https://api.groq.com/openai/v1';
-  static const String _model = 'google/gemma-4-12b-it';
-  static const String _apiKey = String.fromEnvironment('GROQ_API_KEY');
+  static String get _apiKey => dotenv.env['GEMMA_API_KEY'] ?? '';
+  static const String _baseUrl =
+      'https://generativelanguage.googleapis.com/v1beta';
+
+  // ✅ Primary model saja — fallback manual di bawah
+  static const String _primaryModel = 'gemma-4-26b-a4b-it';
+  static const String _fallbackModel = 'gemma-4-31b-it';
 
   final Dio _dio = Dio(
     BaseOptions(
       baseUrl: _baseUrl,
-      headers: {
-        'Authorization': 'Bearer $_apiKey',
-        'Content-Type': 'application/json',
-      },
+      connectTimeout: const Duration(seconds: 15),
+      receiveTimeout: const Duration(seconds: 30),
     ),
   );
+
+  Future<String> _callModel({
+    required String model,
+    required String systemPrompt,
+    required String userMessage,
+    required int maxTokens,
+    required bool jsonMode,
+  }) async {
+    debugPrint('Gemma API trying model: $model');
+    // Gemma doesn't support system_instruction or responseMimeType — fold
+    // the system prompt into the user message instead.
+    final combined = systemPrompt.isEmpty
+        ? userMessage
+        : '$systemPrompt\n\nUser: $userMessage';
+    final response = await _dio.post(
+      '/models/$model:generateContent?key=$_apiKey',
+      data: {
+        'contents': [
+          {
+            'role': 'user',
+            'parts': [
+              {'text': combined},
+            ],
+          },
+        ],
+        'generationConfig': {
+          'maxOutputTokens': maxTokens,
+        },
+      },
+    );
+    debugPrint('Gemma API success with model: $model');
+    final parts =
+        (response.data['candidates'][0]['content']['parts'] as List);
+    final answer = parts.firstWhere(
+      (p) => p is Map && p['thought'] != true && p['text'] != null,
+      orElse: () => parts.last,
+    );
+    return answer['text'] as String;
+  }
 
   Future<String> chat({
     required String systemPrompt,
     required String userMessage,
     int maxTokens = 256,
+    bool jsonMode = false,
   }) async {
-    final response = await _dio.post(
-      '/chat/completions',
-      data: {
-        'model': _model,
-        'max_tokens': maxTokens,
-        'messages': [
-          {'role': 'system', 'content': systemPrompt},
-          {'role': 'user', 'content': userMessage},
-        ],
-      },
-    );
-
-    return response.data['choices'][0]['message']['content'] as String;
+    try {
+      return await _callModel(
+        model: _primaryModel,
+        systemPrompt: systemPrompt,
+        userMessage: userMessage,
+        maxTokens: maxTokens,
+        jsonMode: jsonMode,
+      );
+    } on DioException catch (e) {
+      final status = e.response?.statusCode;
+      debugPrint('Model $_primaryModel failed ($status), trying fallback...');
+      // Fallback ke model kedua hanya untuk error 5xx atau timeout
+      if (status == null || status >= 500) {
+        try {
+          return await _callModel(
+            model: _fallbackModel,
+            systemPrompt: systemPrompt,
+            userMessage: userMessage,
+            maxTokens: maxTokens,
+            jsonMode: jsonMode,
+          );
+        } on DioException catch (e2) {
+          final body = e2.response?.data?.toString() ?? '';
+          throw Exception('Gemma API error ${e2.response?.statusCode}: $body');
+        }
+      }
+      final body = e.response?.data?.toString() ?? '';
+      throw Exception('Gemma API error $status: $body');
+    }
   }
 
   Future<Map<String, dynamic>> chatJson({
@@ -45,7 +105,17 @@ class GroqService {
       systemPrompt: systemPrompt,
       userMessage: userMessage,
       maxTokens: maxTokens,
+      jsonMode: true,
     );
-    return jsonDecode(raw) as Map<String, dynamic>;
+    debugPrint('chatJson raw: $raw');
+    // Gemma often wraps JSON in ```json ... ``` fences.
+    var cleaned = raw.trim();
+    if (cleaned.startsWith('```')) {
+      cleaned = cleaned.replaceFirst(RegExp(r'^```(?:json)?\s*'), '');
+      final fenceEnd = cleaned.lastIndexOf('```');
+      if (fenceEnd != -1) cleaned = cleaned.substring(0, fenceEnd);
+      cleaned = cleaned.trim();
+    }
+    return jsonDecode(cleaned) as Map<String, dynamic>;
   }
 }

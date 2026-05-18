@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../core/constants/app_colors.dart';
 import '../../core/router/app_router.dart';
 import '../../core/widgets/nf_screen.dart';
+import '../../services/gemma_service.dart';
 
 enum IntentKind { brain, emotional, task }
 
@@ -11,23 +12,46 @@ class _IntentSpec {
   final String title, subtitle;
   final Color color, bg;
   final IconData icon;
-  const _IntentSpec(this.kind, this.title, this.subtitle, this.color, this.bg, this.icon);
+  const _IntentSpec(
+    this.kind,
+    this.title,
+    this.subtitle,
+    this.color,
+    this.bg,
+    this.icon,
+  );
 }
 
 const _intents = [
-  _IntentSpec(IntentKind.brain, 'Brain dump',
-      'Multiple things detected — auto organise',
-      AppColors.navy, AppColors.lavenderSoft, Icons.psychology_alt_outlined),
-  _IntentSpec(IntentKind.emotional, 'Emotional check-in',
-      'Emotion detected — validation & coping',
-      AppColors.worriesAccent, AppColors.pinkSoft, Icons.favorite_outline_rounded),
-  _IntentSpec(IntentKind.task, 'Task coach',
-      '1 specific task — micro-step breakdown',
-      AppColors.tasksAccent, AppColors.orangeSoft, Icons.checklist_rounded),
+  _IntentSpec(
+    IntentKind.brain,
+    'Brain dump',
+    'Multiple things detected — auto organise',
+    AppColors.navy,
+    AppColors.lavenderSoft,
+    Icons.psychology_alt_outlined,
+  ),
+  _IntentSpec(
+    IntentKind.emotional,
+    'Emotional check-in',
+    'Emotion detected — validation & coping',
+    AppColors.worriesAccent,
+    AppColors.pinkSoft,
+    Icons.favorite_outline_rounded,
+  ),
+  _IntentSpec(
+    IntentKind.task,
+    'Task coach',
+    '1 specific task — micro-step breakdown',
+    AppColors.tasksAccent,
+    AppColors.orangeSoft,
+    Icons.checklist_rounded,
+  ),
 ];
 
 class IntentScreen extends StatefulWidget {
-  const IntentScreen({super.key});
+  final String transcript;
+  const IntentScreen({super.key, required this.transcript});
 
   @override
   State<IntentScreen> createState() => _IntentScreenState();
@@ -35,37 +59,59 @@ class IntentScreen extends StatefulWidget {
 
 class _IntentScreenState extends State<IntentScreen> {
   IntentKind? _selected;
-  Timer? _selectTimer;
-  Timer? _nextTimer;
-  static const _autoPick = IntentKind.brain;
+  bool _detecting = true;
+  bool _navigated = false;
 
-  @override
-  void initState() {
-    super.initState();
-    _selectTimer = Timer(const Duration(milliseconds: 1500), () {
-      if (mounted) setState(() => _selected = _autoPick);
+  Future<void> _detect(String transcript) async {
+    final kindString = await GemmaService().detectIntent(transcript);
+
+    final kind = switch (kindString) {
+      'brain' => IntentKind.brain,
+      'emotional' => IntentKind.emotional,
+      'task' => IntentKind.task,
+      _ => IntentKind.brain,
+    };
+
+    if (!mounted || _navigated) return;
+
+    setState(() {
+      _selected = kind;
+      _detecting = false;
     });
-    _nextTimer = Timer(const Duration(milliseconds: 3000), () => _go(_autoPick));
+
+    await Future.delayed(const Duration(milliseconds: 800));
+
+    if (mounted && !_navigated) {
+      _go(kind, transcript);
+    }
   }
 
-  void _go(IntentKind k) {
-    _selectTimer?.cancel();
-    _nextTimer?.cancel();
-    if (!mounted) return;
+  void _go(IntentKind k, String transcript) {
+    if (!mounted || _navigated) return;
+    _navigated = true;
+
     final route = switch (k) {
       IntentKind.brain => AppRoutes.brainResult,
       IntentKind.emotional => AppRoutes.emotional,
       IntentKind.task => AppRoutes.taskSteps,
     };
-    Navigator.pushReplacementNamed(context, AppRoutes.processing,
-        arguments: route);
+
+    Navigator.pushReplacementNamed(
+      context,
+      AppRoutes.processing,
+      arguments: {
+        'nextRoute': route,
+        'transcript': transcript,
+        'intent': k.name,
+      },
+    );
   }
 
   @override
-  void dispose() {
-    _selectTimer?.cancel();
-    _nextTimer?.cancel();
-    super.dispose();
+  void initState() {
+    super.initState();
+    debugPrint('IntentScreen got transcript: ${widget.transcript}');
+    _detect(widget.transcript);
   }
 
   @override
@@ -78,8 +124,13 @@ class _IntentScreenState extends State<IntentScreen> {
           child: Column(
             mainAxisSize: MainAxisSize.min,
             children: [
-              const Text('Detecting intent…',
-                  style: TextStyle(fontSize: 14, color: AppColors.textSecondary)),
+              Text(
+                _detecting ? 'Detecting intent…' : 'Got it!',
+                style: const TextStyle(
+                  fontSize: 14,
+                  color: AppColors.textSecondary,
+                ),
+              ),
               const SizedBox(height: 22),
               for (final it in _intents) ...[
                 _IntentCard(
@@ -87,7 +138,10 @@ class _IntentScreenState extends State<IntentScreen> {
                   selected: _selected == it.kind,
                   onTap: () {
                     setState(() => _selected = it.kind);
-                    Timer(const Duration(milliseconds: 350), () => _go(it.kind));
+                    Future.delayed(
+                      const Duration(milliseconds: 350),
+                      () => _go(it.kind, widget.transcript),
+                    );
                   },
                 ),
                 if (it != _intents.last) const SizedBox(height: 12),
@@ -105,8 +159,11 @@ class _IntentCard extends StatelessWidget {
   final bool selected;
   final VoidCallback onTap;
 
-  const _IntentCard(
-      {required this.spec, required this.selected, required this.onTap});
+  const _IntentCard({
+    required this.spec,
+    required this.selected,
+    required this.onTap,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -123,13 +180,12 @@ class _IntentCard extends StatelessWidget {
           ),
         ),
         elevation: selected ? 6 : 1,
-        shadowColor: const Color(0xFF1C2440).withOpacity(0.08),
+        shadowColor: const Color(0xFF1C2440).withValues(alpha: 0.08),
         child: InkWell(
           onTap: onTap,
           borderRadius: BorderRadius.circular(16),
           child: Padding(
-            padding:
-                const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 14),
             child: Row(
               children: [
                 Container(
@@ -146,17 +202,23 @@ class _IntentCard extends StatelessWidget {
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      Text(spec.title,
-                          style: const TextStyle(
-                              fontSize: 14,
-                              fontWeight: FontWeight.w700,
-                              color: AppColors.textPrimary)),
+                      Text(
+                        spec.title,
+                        style: const TextStyle(
+                          fontSize: 14,
+                          fontWeight: FontWeight.w700,
+                          color: AppColors.textPrimary,
+                        ),
+                      ),
                       const SizedBox(height: 2),
-                      Text(spec.subtitle,
-                          style: const TextStyle(
-                              fontSize: 11.5,
-                              color: AppColors.textSecondary,
-                              height: 1.4)),
+                      Text(
+                        spec.subtitle,
+                        style: const TextStyle(
+                          fontSize: 11.5,
+                          color: AppColors.textSecondary,
+                          height: 1.4,
+                        ),
+                      ),
                     ],
                   ),
                 ),
@@ -164,10 +226,15 @@ class _IntentCard extends StatelessWidget {
                   Container(
                     width: 24,
                     height: 24,
-                    decoration:
-                        BoxDecoration(color: spec.color, shape: BoxShape.circle),
-                    child: const Icon(Icons.check_rounded,
-                        size: 14, color: Colors.white),
+                    decoration: BoxDecoration(
+                      color: spec.color,
+                      shape: BoxShape.circle,
+                    ),
+                    child: const Icon(
+                      Icons.check_rounded,
+                      size: 14,
+                      color: Colors.white,
+                    ),
                   ),
               ],
             ),

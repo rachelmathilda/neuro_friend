@@ -1,32 +1,22 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/constants/app_colors.dart';
 import '../../core/router/app_router.dart';
 import '../../core/widgets/nf_screen.dart';
 import '../../core/widgets/nf_tab_bar.dart';
+import '../../data/models/brain_dump_entry.dart';
+import '../../providers/brain_dump_provider.dart';
 
-class _Dump {
-  final String id, when, summary;
-  final int tasks, ideas, events, worries;
-  const _Dump(this.id, this.when, this.summary, this.tasks, this.ideas,
-      this.events, this.worries);
-}
-
-const _dumps = [
-  _Dump('d1', 'Today · 09:42', '"Lots of deadlines this week…"', 2, 1, 1, 1),
-  _Dump('d2', 'Yesterday · 22:18',
-      '"Exhausted but still thinking about work"', 0, 2, 0, 3),
-  _Dump('d3', 'Mon · 14:05',
-      '"New app idea while I was in the shower"', 1, 4, 1, 0),
-  _Dump('d4', 'May 24 · 11:30',
-      '"Forgot what I needed to take care of"', 5, 0, 2, 2),
-];
-
-class BrainDumpsTab extends StatelessWidget {
+class BrainDumpsTab extends ConsumerWidget {
   final ValueChanged<NFTab> onTab;
   const BrainDumpsTab({super.key, required this.onTab});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final entries = ref.watch(brainDumpListProvider);
+
+    final totals = _Totals.from(entries);
+
     return NFScreen(
       tabActive: NFTab.brainDumps,
       onTab: onTab,
@@ -53,33 +43,96 @@ class BrainDumpsTab extends StatelessWidget {
             ),
           ),
           Row(
-            children: const [
-              Expanded(child: _CountChip(value: 8, label: 'Tasks', color: AppColors.tasksAccent, bg: AppColors.orangeSoft)),
-              SizedBox(width: 8),
-              Expanded(child: _CountChip(value: 7, label: 'Ideas', color: AppColors.ideasAccent, bg: AppColors.lavenderSoft)),
-              SizedBox(width: 8),
-              Expanded(child: _CountChip(value: 4, label: 'Events', color: AppColors.navy, bg: AppColors.blueSoft)),
-              SizedBox(width: 8),
-              Expanded(child: _CountChip(value: 6, label: 'Worries', color: AppColors.worriesAccent, bg: AppColors.pinkSoft)),
+            children: [
+              Expanded(child: _CountChip(value: totals.tasks, label: 'Tasks', color: AppColors.tasksAccent, bg: AppColors.orangeSoft)),
+              const SizedBox(width: 8),
+              Expanded(child: _CountChip(value: totals.ideas, label: 'Ideas', color: AppColors.ideasAccent, bg: AppColors.lavenderSoft)),
+              const SizedBox(width: 8),
+              Expanded(child: _CountChip(value: totals.events, label: 'Events', color: AppColors.navy, bg: AppColors.blueSoft)),
             ],
           ),
           const SizedBox(height: 14),
           Expanded(
-            child: ListView.separated(
-              padding: const EdgeInsets.only(bottom: 8),
-              itemCount: _dumps.length,
-              separatorBuilder: (_, __) => const SizedBox(height: 10),
-              itemBuilder: (ctx, i) => _DumpCard(
-                dump: _dumps[i],
-                onTap: () =>
-                    Navigator.pushNamed(ctx, AppRoutes.brainResult),
-              ),
-            ),
+            child: entries.isEmpty
+                ? const _EmptyState()
+                : ListView.separated(
+                    padding: const EdgeInsets.only(bottom: 8),
+                    itemCount: entries.length,
+                    separatorBuilder: (_, __) => const SizedBox(height: 10),
+                    itemBuilder: (ctx, i) => _DumpCard(
+                      entry: entries[i],
+                      onTap: () => Navigator.pushNamed(
+                        ctx,
+                        AppRoutes.brainResult,
+                        arguments: entries[i].id,
+                      ),
+                    ),
+                  ),
           ),
         ],
       ),
     );
   }
+}
+
+class _Totals {
+  final int tasks, ideas, events;
+  const _Totals(this.tasks, this.ideas, this.events);
+
+  factory _Totals.from(List<BrainDumpEntry> list) {
+    var t = 0, i = 0, e = 0;
+    for (final entry in list) {
+      t += entry.tasks.length;
+      i += entry.ideas.length;
+      e += entry.events.length;
+    }
+    return _Totals(t, i, e);
+  }
+}
+
+class _EmptyState extends StatelessWidget {
+  const _EmptyState();
+
+  @override
+  Widget build(BuildContext context) {
+    return Center(
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 24),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: const [
+            Icon(Icons.psychology_alt_outlined, size: 48, color: AppColors.textTertiary),
+            SizedBox(height: 12),
+            Text(
+              'No brain dumps yet.\nTap the mic to start.',
+              textAlign: TextAlign.center,
+              style: TextStyle(
+                fontSize: 13,
+                height: 1.5,
+                color: AppColors.textSecondary,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+String _formatWhen(DateTime ts) {
+  final now = DateTime.now();
+  final today = DateTime(now.year, now.month, now.day);
+  final tsDay = DateTime(ts.year, ts.month, ts.day);
+  final diff = today.difference(tsDay).inDays;
+  final hh = ts.hour.toString().padLeft(2, '0');
+  final mm = ts.minute.toString().padLeft(2, '0');
+  if (diff == 0) return 'Today · $hh:$mm';
+  if (diff == 1) return 'Yesterday · $hh:$mm';
+  const months = [
+    'Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun',
+    'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec',
+  ];
+  return '${months[ts.month - 1]} ${ts.day} · $hh:$mm';
 }
 
 class _CountChip extends StatelessWidget {
@@ -115,12 +168,15 @@ class _CountChip extends StatelessWidget {
 }
 
 class _DumpCard extends StatelessWidget {
-  final _Dump dump;
+  final BrainDumpEntry entry;
   final VoidCallback onTap;
-  const _DumpCard({required this.dump, required this.onTap});
+  const _DumpCard({required this.entry, required this.onTap});
 
   @override
   Widget build(BuildContext context) {
+    final summary = entry.summary.isEmpty
+        ? entry.rawTranscript
+        : entry.summary;
     return Material(
       color: AppColors.surface,
       shape: RoundedRectangleBorder(
@@ -138,7 +194,7 @@ class _DumpCard extends StatelessWidget {
               Row(
                 mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
-                  Text(dump.when,
+                  Text(_formatWhen(entry.timestamp),
                       style: const TextStyle(
                           fontSize: 11.5,
                           fontWeight: FontWeight.w600,
@@ -156,7 +212,9 @@ class _DumpCard extends StatelessWidget {
                 ],
               ),
               const SizedBox(height: 8),
-              Text(dump.summary,
+              Text('"$summary"',
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
                   style: const TextStyle(
                       fontSize: 14,
                       fontStyle: FontStyle.italic,
@@ -167,30 +225,24 @@ class _DumpCard extends StatelessWidget {
                 spacing: 6,
                 runSpacing: 6,
                 children: [
-                  if (dump.tasks > 0)
+                  if (entry.tasks.isNotEmpty)
                     _MiniChip(
-                        '${dump.tasks} task',
+                        '${entry.tasks.length} task',
                         Icons.checklist_rounded,
                         AppColors.tasksAccent,
                         AppColors.orangeSoft),
-                  if (dump.ideas > 0)
+                  if (entry.ideas.isNotEmpty)
                     _MiniChip(
-                        '${dump.ideas} idea',
+                        '${entry.ideas.length} idea',
                         Icons.psychology_alt_outlined,
                         AppColors.ideasAccent,
                         AppColors.lavenderSoft),
-                  if (dump.events > 0)
+                  if (entry.events.isNotEmpty)
                     _MiniChip(
-                        '${dump.events} event',
+                        '${entry.events.length} event',
                         Icons.calendar_today_rounded,
                         AppColors.navy,
                         AppColors.blueSoft),
-                  if (dump.worries > 0)
-                    _MiniChip(
-                        '${dump.worries} worry',
-                        Icons.favorite_outline_rounded,
-                        AppColors.worriesAccent,
-                        AppColors.pinkSoft),
                 ],
               ),
             ],
