@@ -27,15 +27,16 @@ class NFButton extends StatelessWidget {
     final padding = variant == NFButtonVariant.pillSmall
         ? const EdgeInsets.symmetric(horizontal: 14, vertical: 7)
         : small
-            ? const EdgeInsets.symmetric(horizontal: 14, vertical: 8)
-            : const EdgeInsets.symmetric(horizontal: 18, vertical: 14);
+        ? const EdgeInsets.symmetric(horizontal: 14, vertical: 8)
+        : const EdgeInsets.symmetric(horizontal: 18, vertical: 14);
     final radius = variant == NFButtonVariant.pillSmall ? 999.0 : 14.0;
     final fontSize = variant == NFButtonVariant.pillSmall
         ? 12.0
         : small
-            ? 12.5
-            : 15.0;
-    final fontWeight = (variant == NFButtonVariant.cream ||
+        ? 12.5
+        : 15.0;
+    final fontWeight =
+        (variant == NFButtonVariant.cream ||
             variant == NFButtonVariant.pillSmall)
         ? FontWeight.w700
         : FontWeight.w600;
@@ -92,7 +93,7 @@ class NFButton extends StatelessWidget {
           bg: AppColors.blue,
           fg: Colors.white,
           shadow: BoxShadow(
-            color: AppColors.blue.withOpacity(0.28),
+            color: AppColors.blue.withValues(alpha: 0.28),
             blurRadius: 16,
             offset: const Offset(0, 6),
           ),
@@ -100,11 +101,17 @@ class NFButton extends StatelessWidget {
       case NFButtonVariant.navy:
         return const _ButtonSpec(bg: AppColors.navy, fg: Colors.white);
       case NFButtonVariant.success:
-        return const _ButtonSpec(bg: AppColors.green, fg: AppColors.textPrimary);
+        return const _ButtonSpec(
+          bg: AppColors.green,
+          fg: AppColors.textPrimary,
+        );
       case NFButtonVariant.coach:
         return const _ButtonSpec(bg: AppColors.orange, fg: Colors.white);
       case NFButtonVariant.cream:
-        return const _ButtonSpec(bg: AppColors.cream, fg: AppColors.creamAccent);
+        return const _ButtonSpec(
+          bg: AppColors.cream,
+          fg: AppColors.creamAccent,
+        );
       case NFButtonVariant.ghost:
         return const _ButtonSpec(
           bg: Colors.transparent,
@@ -112,7 +119,10 @@ class NFButton extends StatelessWidget {
           border: AppColors.border,
         );
       case NFButtonVariant.pillSmall:
-        return const _ButtonSpec(bg: AppColors.cream, fg: AppColors.creamAccent);
+        return const _ButtonSpec(
+          bg: AppColors.cream,
+          fg: AppColors.creamAccent,
+        );
     }
   }
 }
@@ -122,5 +132,10 @@ class _ButtonSpec {
   final Color fg;
   final Color? border;
   final BoxShadow? shadow;
-  const _ButtonSpec({required this.bg, required this.fg, this.border, this.shadow});
+  const _ButtonSpec({
+    required this.bg,
+    required this.fg,
+    this.border,
+    this.shadow,
+  });
 }

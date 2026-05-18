@@ -3,22 +3,8 @@ import '../../core/constants/app_colors.dart';
 import '../../core/router/app_router.dart';
 import '../../core/widgets/nf_screen.dart';
 import '../../core/widgets/nf_tab_bar.dart';
-
-enum _TaskStatus { active, fresh, done }
-
-class _Task {
-  final String id, title, due;
-  final int done, total, mins;
-  final _TaskStatus status;
-  const _Task(this.id, this.title, this.done, this.total, this.mins,
-      this.status, this.due);
-}
-
-const _tasks = <_Task>[
-  _Task('t1', 'Make Q2 presentation', 2, 6, 47, _TaskStatus.active, 'Today'),
-  _Task('t2', 'Send proposal email', 0, 3, 18, _TaskStatus.fresh, 'Tomorrow'),
-  _Task('t3', 'Weekly groceries', 4, 4, 25, _TaskStatus.done, 'Yesterday'),
-];
+import '../../data/repositories/task_repository.dart';
+import '../../data/models/task_model.dart';
 
 class TasksTab extends StatefulWidget {
   final ValueChanged<NFTab> onTab;
@@ -29,21 +15,52 @@ class TasksTab extends StatefulWidget {
 }
 
 class _TasksTabState extends State<TasksTab> {
+  final _repo = TaskRepository();
   String _filter = 'all';
+  List<TaskModel> _tasks = [];
+  bool _loading = true;
+  String? _error;
+
+  @override
+  void initState() {
+    super.initState();
+    _load();
+  }
+
+  Future<void> _load() async {
+    setState(() {
+      _loading = true;
+      _error = null;
+    });
+    try {
+      final tasks = await _repo.fetchToday();
+      if (mounted)
+        setState(() {
+          _tasks = tasks;
+          _loading = false;
+        });
+    } catch (e) {
+      if (mounted)
+        setState(() {
+          _error = e.toString();
+          _loading = false;
+        });
+    }
+  }
+
+  List<TaskModel> get _filtered => _tasks.where((t) {
+    switch (_filter) {
+      case 'active':
+        return t.status == TaskStatus.now || t.status == TaskStatus.notYet;
+      case 'done':
+        return t.status == TaskStatus.done;
+      default:
+        return true;
+    }
+  }).toList();
 
   @override
   Widget build(BuildContext context) {
-    final filtered = _tasks.where((t) {
-      switch (_filter) {
-        case 'active':
-          return t.status == _TaskStatus.active || t.status == _TaskStatus.fresh;
-        case 'done':
-          return t.status == _TaskStatus.done;
-        default:
-          return true;
-      }
-    }).toList();
-
     return NFScreen(
       tabActive: NFTab.tasks,
       onTab: widget.onTab,
@@ -56,16 +73,23 @@ class _TasksTabState extends State<TasksTab> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text('Task Coach',
-                    style: TextStyle(
-                        fontSize: 22,
-                        fontWeight: FontWeight.w800,
-                        letterSpacing: -0.3,
-                        color: AppColors.textPrimary)),
+                Text(
+                  'Task Coach',
+                  style: TextStyle(
+                    fontSize: 22,
+                    fontWeight: FontWeight.w800,
+                    letterSpacing: -0.3,
+                    color: AppColors.textPrimary,
+                  ),
+                ),
                 SizedBox(height: 4),
-                Text('Your tasks, broken down into small steps.',
-                    style: TextStyle(
-                        fontSize: 13, color: AppColors.textSecondary)),
+                Text(
+                  'Your tasks, broken down into small steps.',
+                  style: TextStyle(
+                    fontSize: 13,
+                    color: AppColors.textSecondary,
+                  ),
+                ),
               ],
             ),
           ),
@@ -87,23 +111,62 @@ class _TasksTabState extends State<TasksTab> {
             ],
           ),
           const SizedBox(height: 14),
-          Expanded(
-            child: ListView.separated(
-              padding: const EdgeInsets.only(bottom: 8),
-              itemCount: filtered.length + 1,
-              separatorBuilder: (_, __) => const SizedBox(height: 10),
-              itemBuilder: (ctx, i) {
-                if (i == filtered.length) {
-                  return _AddTaskButton(onTap: () => widget.onTab(NFTab.mic));
-                }
-                return _TaskCard(
-                  task: filtered[i],
-                  onTap: () => Navigator.pushNamed(ctx, AppRoutes.taskSteps),
-                );
-              },
-            ),
-          ),
+          Expanded(child: _body()),
         ],
+      ),
+    );
+  }
+
+  Widget _body() {
+    if (_loading) {
+      return const Center(child: CircularProgressIndicator());
+    }
+    if (_error != null) {
+      return Center(
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            const Icon(
+              Icons.wifi_off_rounded,
+              color: AppColors.textTertiary,
+              size: 32,
+            ),
+            const SizedBox(height: 10),
+            Text(
+              'Could not load tasks',
+              style: const TextStyle(color: AppColors.textSecondary),
+            ),
+            const SizedBox(height: 8),
+            TextButton(onPressed: _load, child: const Text('Retry')),
+          ],
+        ),
+      );
+    }
+
+    final filtered = _filtered;
+    return RefreshIndicator(
+      onRefresh: _load,
+      child: ListView.separated(
+        padding: const EdgeInsets.only(bottom: 8),
+        itemCount: filtered.length + 1,
+        separatorBuilder: (_, __) => const SizedBox(height: 10),
+        itemBuilder: (ctx, i) {
+          if (i == filtered.length) {
+            return _AddTaskButton(onTap: () => widget.onTab(NFTab.mic));
+          }
+          return _TaskCard(
+            task: filtered[i],
+            onTap: () => Navigator.pushNamed(
+              ctx,
+              AppRoutes.taskSteps,
+              arguments: filtered[i],
+            ),
+            onStatusChanged: (status) async {
+              await _repo.updateStatus(filtered[i].id, status);
+              _load();
+            },
+          );
+        },
       ),
     );
   }
@@ -113,7 +176,11 @@ class _FilterPill extends StatelessWidget {
   final String label;
   final bool active;
   final VoidCallback onTap;
-  const _FilterPill({required this.label, required this.active, required this.onTap});
+  const _FilterPill({
+    required this.label,
+    required this.active,
+    required this.onTap,
+  });
 
   @override
   Widget build(BuildContext context) {
@@ -121,7 +188,9 @@ class _FilterPill extends StatelessWidget {
       color: active ? AppColors.blue : AppColors.surface,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(999),
-        side: active ? BorderSide.none : const BorderSide(color: AppColors.border),
+        side: active
+            ? BorderSide.none
+            : const BorderSide(color: AppColors.border),
       ),
       child: InkWell(
         onTap: onTap,
@@ -132,7 +201,7 @@ class _FilterPill extends StatelessWidget {
                   borderRadius: BorderRadius.circular(999),
                   boxShadow: [
                     BoxShadow(
-                      color: AppColors.blue.withOpacity(0.25),
+                      color: AppColors.blue.withValues(alpha: 0.25),
                       blurRadius: 12,
                       offset: const Offset(0, 4),
                     ),
@@ -155,20 +224,29 @@ class _FilterPill extends StatelessWidget {
 }
 
 class _TaskCard extends StatelessWidget {
-  final _Task task;
+  final TaskModel task;
   final VoidCallback onTap;
-  const _TaskCard({required this.task, required this.onTap});
+  final ValueChanged<TaskStatus> onStatusChanged;
+  const _TaskCard({
+    required this.task,
+    required this.onTap,
+    required this.onStatusChanged,
+  });
 
   @override
   Widget build(BuildContext context) {
-    final isDone = task.status == _TaskStatus.done;
-    final pct = task.total == 0 ? 0.0 : task.done / task.total;
+    final isDone = task.status == TaskStatus.done;
+    final isDelayed = task.status == TaskStatus.delayed;
 
     return Material(
       color: AppColors.surface,
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(16),
-        side: const BorderSide(color: AppColors.border),
+        side: BorderSide(
+          color: task.isUrgent
+              ? AppColors.orange.withValues(alpha: 0.5)
+              : AppColors.border,
+        ),
       ),
       child: InkWell(
         onTap: onTap,
@@ -177,82 +255,120 @@ class _TaskCard extends StatelessWidget {
           opacity: isDone ? 0.78 : 1,
           child: Padding(
             padding: const EdgeInsets.all(14),
-            child: Column(
+            child: Row(
               children: [
-                Row(
-                  children: [
-                    Container(
-                      width: 38,
-                      height: 38,
-                      decoration: BoxDecoration(
-                        color: isDone
-                            ? AppColors.greenSoft
-                            : AppColors.orangeSoft,
-                        borderRadius: BorderRadius.circular(12),
-                      ),
-                      child: Icon(
-                        isDone ? Icons.check_rounded : Icons.checklist_rounded,
-                        size: 18,
-                        color: isDone ? AppColors.green : AppColors.tasksAccent,
-                      ),
+                GestureDetector(
+                  onTap: () => onStatusChanged(
+                    isDone ? TaskStatus.notYet : TaskStatus.done,
+                  ),
+                  child: Container(
+                    width: 38,
+                    height: 38,
+                    decoration: BoxDecoration(
+                      color: isDone
+                          ? AppColors.greenSoft
+                          : AppColors.orangeSoft,
+                      borderRadius: BorderRadius.circular(12),
                     ),
-                    const SizedBox(width: 10),
-                    Expanded(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            task.title,
-                            style: TextStyle(
-                              fontSize: 14,
-                              fontWeight: FontWeight.w700,
-                              color: AppColors.textPrimary,
-                              decoration: isDone
-                                  ? TextDecoration.lineThrough
-                                  : TextDecoration.none,
-                              decorationColor:
-                                  AppColors.textPrimary.withOpacity(0.4),
-                            ),
-                          ),
-                          const SizedBox(height: 3),
-                          Text(
-                            '${task.due}  ·  ±${task.mins} min',
-                            style: const TextStyle(
-                                fontSize: 11.5,
-                                color: AppColors.textSecondary),
-                          ),
-                        ],
-                      ),
+                    child: Icon(
+                      isDone ? Icons.check_rounded : Icons.checklist_rounded,
+                      size: 18,
+                      color: isDone ? AppColors.green : AppColors.tasksAccent,
                     ),
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 10, vertical: 5),
-                      decoration: BoxDecoration(
-                        color: isDone ? AppColors.greenSoft : AppColors.cream,
-                        borderRadius: BorderRadius.circular(999),
-                      ),
-                      child: Text(
-                        '${task.done}/${task.total}',
+                  ),
+                ),
+                const SizedBox(width: 10),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        task.title,
                         style: TextStyle(
-                          fontSize: 11,
+                          fontSize: 14,
                           fontWeight: FontWeight.w700,
-                          color: isDone
-                              ? AppColors.greenAccent
-                              : AppColors.tasksAccent,
+                          color: AppColors.textPrimary,
+                          decoration: isDone
+                              ? TextDecoration.lineThrough
+                              : TextDecoration.none,
+                          decorationColor: AppColors.textPrimary.withValues(
+                            alpha: 0.4,
+                          ),
                         ),
                       ),
-                    ),
-                  ],
+                      const SizedBox(height: 3),
+                      Row(
+                        children: [
+                          Text(
+                            _formatTime(task.startTime),
+                            style: const TextStyle(
+                              fontSize: 11.5,
+                              color: AppColors.textSecondary,
+                            ),
+                          ),
+                          if (task.isUrgent) ...[
+                            const SizedBox(width: 6),
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 6,
+                                vertical: 2,
+                              ),
+                              decoration: BoxDecoration(
+                                color: AppColors.orangeSoft,
+                                borderRadius: BorderRadius.circular(999),
+                              ),
+                              child: const Text(
+                                'Urgent',
+                                style: TextStyle(
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.w700,
+                                  color: AppColors.tasksAccent,
+                                ),
+                              ),
+                            ),
+                          ],
+                          if (isDelayed) ...[
+                            const SizedBox(width: 6),
+                            Container(
+                              padding: const EdgeInsets.symmetric(
+                                horizontal: 6,
+                                vertical: 2,
+                              ),
+                              decoration: BoxDecoration(
+                                color: AppColors.pinkSoft,
+                                borderRadius: BorderRadius.circular(999),
+                              ),
+                              child: const Text(
+                                'Delayed',
+                                style: TextStyle(
+                                  fontSize: 10,
+                                  fontWeight: FontWeight.w700,
+                                  color: AppColors.worriesAccent,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ],
+                      ),
+                    ],
+                  ),
                 ),
-                const SizedBox(height: 12),
-                ClipRRect(
-                  borderRadius: BorderRadius.circular(3),
-                  child: LinearProgressIndicator(
-                    value: pct,
-                    minHeight: 6,
-                    backgroundColor: AppColors.border,
-                    valueColor: AlwaysStoppedAnimation(
-                        isDone ? AppColors.green : AppColors.orange),
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 10,
+                    vertical: 5,
+                  ),
+                  decoration: BoxDecoration(
+                    color: _categoryColor(task.category),
+                    borderRadius: BorderRadius.circular(999),
+                  ),
+                  child: Text(
+                    _categoryLabel(task.category),
+                    style: const TextStyle(
+                      fontSize: 11,
+                      fontWeight: FontWeight.w700,
+                      color: AppColors.textSecondary,
+                    ),
                   ),
                 ),
               ],
@@ -261,6 +377,42 @@ class _TaskCard extends StatelessWidget {
         ),
       ),
     );
+  }
+
+  String _formatTime(DateTime dt) {
+    final h = dt.hour.toString().padLeft(2, '0');
+    final m = dt.minute.toString().padLeft(2, '0');
+    return '$h:$m';
+  }
+
+  Color _categoryColor(TaskCategory c) {
+    switch (c) {
+      case TaskCategory.sensory:
+        return AppColors.lavenderSoft;
+      case TaskCategory.health:
+        return AppColors.greenSoft;
+      case TaskCategory.eat:
+        return AppColors.orangeSoft;
+      case TaskCategory.job:
+        return AppColors.blueSoft;
+      case TaskCategory.other:
+        return AppColors.cream;
+    }
+  }
+
+  String _categoryLabel(TaskCategory c) {
+    switch (c) {
+      case TaskCategory.sensory:
+        return 'Sensory';
+      case TaskCategory.health:
+        return 'Health';
+      case TaskCategory.eat:
+        return 'Eat';
+      case TaskCategory.job:
+        return 'Job';
+      case TaskCategory.other:
+        return 'Other';
+    }
   }
 }
 
@@ -277,11 +429,7 @@ class _AddTaskButton extends StatelessWidget {
         decoration: BoxDecoration(
           color: AppColors.surface,
           borderRadius: BorderRadius.circular(16),
-          border: Border.all(
-            color: AppColors.blueSoft,
-            width: 1.5,
-            style: BorderStyle.solid,
-          ),
+          border: Border.all(color: AppColors.blueSoft, width: 1.5),
         ),
         padding: const EdgeInsets.all(14),
         child: const Row(

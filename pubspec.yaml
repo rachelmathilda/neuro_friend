@@ -82,11 +82,14 @@ dependencies:
   rrule: ^0.2.16
   clipboard: ^0.1.3
   reactive_forms: ^16.1.1
+  shared_preferences: ^2.3.2
 
   timezone: ^0.9.4
 
   # Fonts
   google_fonts: ^6.2.1
+  http: ^1.2.2
+  flutter_dotenv: ^5.2.1
 
 dev_dependencies:
   flutter_test:
@@ -105,6 +108,7 @@ flutter:
 
   assets:
     - assets/images/
+    - .env
 
   fonts:
     - family: InclusiveSans

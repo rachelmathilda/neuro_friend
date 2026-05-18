@@ -66,12 +66,17 @@ class AppRouter {
       case AppRoutes.listening:
         return _build(const ListeningScreen());
       case AppRoutes.intent:
-        return _build(const IntentScreen());
+        final transcript = settings.arguments as String? ?? '';
+        return _build(IntentScreen(transcript: transcript));
       case AppRoutes.processing:
-        return _build(ProcessingScreen(
-          nextRoute: settings.arguments as String?,
-        ));
-
+        final args = settings.arguments as Map<String, dynamic>? ?? {};
+        return _build(
+          ProcessingScreen(
+            nextRoute: args['nextRoute'] as String? ?? AppRoutes.brainResult,
+            transcript: args['transcript'] as String? ?? '',
+            intent: args['intent'] as String? ?? 'brain',
+          ),
+        );
       case AppRoutes.brainResult:
         return _build(const BrainResultScreen());
       case AppRoutes.emotional:
@@ -79,9 +84,7 @@ class AppRouter {
       case AppRoutes.taskSteps:
         return _build(const TaskStepsScreen());
       case AppRoutes.taskTimer:
-        return _build(TaskTimerScreen(
-          stepNumber: (settings.arguments as int?) ?? 1,
-        ));
+        return _build(const TaskTimerScreen());
       case AppRoutes.taskProgress:
         return _build(const TaskProgressScreen());
 

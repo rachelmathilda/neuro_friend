@@ -27,9 +27,14 @@ class _NFMicButtonState extends State<NFMicButton>
   @override
   void initState() {
     super.initState();
-    _c1 = AnimationController(vsync: this, duration: const Duration(milliseconds: 2200))
-      ..repeat();
-    _c2 = AnimationController(vsync: this, duration: const Duration(milliseconds: 2200));
+    _c1 = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 2200),
+    )..repeat();
+    _c2 = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 2200),
+    );
     Future.delayed(const Duration(milliseconds: 1100), () {
       if (mounted) _c2.repeat();
     });
@@ -51,10 +56,7 @@ class _NFMicButtonState extends State<NFMicButton>
       child: Stack(
         alignment: Alignment.center,
         children: [
-          if (widget.recording) ...[
-            _ring(_c1, 0.16),
-            _ring(_c2, 0.08),
-          ],
+          if (widget.recording) ...[_ring(_c1, 0.16), _ring(_c2, 0.08)],
           GestureDetector(
             onTap: widget.onTap,
             child: Container(
@@ -65,7 +67,7 @@ class _NFMicButtonState extends State<NFMicButton>
                 shape: BoxShape.circle,
                 boxShadow: [
                   BoxShadow(
-                    color: widget.color.withOpacity(0.33),
+                    color: widget.color.withValues(alpha: 0.33),
                     blurRadius: 28,
                     offset: const Offset(0, 10),
                   ),

@@ -6,6 +6,7 @@ import '../../core/router/app_router.dart';
 import '../../core/widgets/nf_mascot.dart';
 import '../../core/widgets/nf_mic_button.dart';
 import '../../core/widgets/nf_screen.dart';
+import '../../services/stt_service.dart';
 
 class ListeningScreen extends StatefulWidget {
   const ListeningScreen({super.key});
@@ -15,9 +16,17 @@ class ListeningScreen extends StatefulWidget {
 }
 
 class _ListeningScreenState extends State<ListeningScreen> {
+  final SttService _stt = SttService();
+
   int _secs = 0;
   Timer? _ticker;
-  Timer? _auto;
+  Timer? _silenceTimer;
+
+  String _transcript = '';
+  String _latestTranscript = '';
+  bool _listening = false;
+  bool _finishing = false;
+  String _statusMsg = 'Initialising…';
 
   @override
   void initState() {
@@ -25,19 +34,64 @@ class _ListeningScreenState extends State<ListeningScreen> {
     _ticker = Timer.periodic(const Duration(seconds: 1), (_) {
       if (mounted) setState(() => _secs++);
     });
-    _auto = Timer(const Duration(milliseconds: 4200), _next);
+    _initAndStart();
   }
 
-  void _next() {
+  Future<void> _initAndStart() async {
+    final ok = await _stt.init();
+    if (!mounted) return;
+    if (ok) {
+      setState(() => _statusMsg = 'Listening…');
+      _startListening();
+    } else {
+      setState(() => _statusMsg = 'Mic unavailable — tap to retry');
+    }
+  }
+
+  void _startListening() {
+    if (_stt.isListening) return;
+    _stt.startListening(
+      localeId: 'en_US',
+      onResult: (text, isFinal) {
+        _latestTranscript = text;
+        if (!mounted) return;
+        setState(() => _transcript = text);
+        if (isFinal && text.trim().isNotEmpty) {
+          _doFinish();
+        }
+      },
+    );
+    if (mounted) setState(() => _listening = true);
+  }
+
+  void _finish() {
+    _silenceTimer?.cancel();
+    _stt.stopListening();
+    Timer(const Duration(milliseconds: 300), _doFinish);
+  }
+
+  void _doFinish() {
+    if (_finishing) return;
+    _finishing = true;
     _ticker?.cancel();
-    _auto?.cancel();
-    if (mounted) Navigator.pushReplacementNamed(context, AppRoutes.intent);
+    _silenceTimer?.cancel();
+    if (!mounted) return;
+    final transcript = _latestTranscript.trim().isEmpty
+        ? 'No speech captured.'
+        : _latestTranscript.trim();
+    debugPrint('ListeningScreen navigating with: $transcript');
+    Navigator.pushReplacementNamed(
+      context,
+      AppRoutes.intent,
+      arguments: transcript, // ← String langsung
+    );
   }
 
   @override
   void dispose() {
     _ticker?.cancel();
-    _auto?.cancel();
+    _silenceTimer?.cancel();
+    _stt.stopListening();
     super.dispose();
   }
 
@@ -52,8 +106,13 @@ class _ListeningScreenState extends State<ListeningScreen> {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            const Text('Listening…',
-                style: TextStyle(fontSize: 13, color: AppColors.textSecondary)),
+            Text(
+              _statusMsg,
+              style: const TextStyle(
+                fontSize: 13,
+                color: AppColors.textSecondary,
+              ),
+            ),
             const SizedBox(height: 10),
             const NFMascot(size: 90, mood: MascotMood.listening),
             const SizedBox(height: 8),
@@ -65,21 +124,41 @@ class _ListeningScreenState extends State<ListeningScreen> {
                 borderRadius: BorderRadius.circular(28),
               ),
               alignment: Alignment.center,
-              child: const _Waveform(),
+              child: _transcript.isEmpty
+                  ? const _Waveform()
+                  : Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: 14),
+                      child: Text(
+                        _transcript,
+                        maxLines: 4,
+                        overflow: TextOverflow.ellipsis,
+                        textAlign: TextAlign.center,
+                        style: const TextStyle(
+                          fontSize: 12,
+                          color: AppColors.textPrimary,
+                          height: 1.4,
+                        ),
+                      ),
+                    ),
             ),
             const SizedBox(height: 12),
-            Text('$mm:$ss',
-                style: const TextStyle(
-                    fontSize: 15,
-                    fontWeight: FontWeight.w600,
-                    letterSpacing: 0.5,
-                    color: AppColors.textSecondary)),
+            Text(
+              '$mm:$ss',
+              style: const TextStyle(
+                fontSize: 15,
+                fontWeight: FontWeight.w600,
+                letterSpacing: 0.5,
+                color: AppColors.textSecondary,
+              ),
+            ),
             const SizedBox(height: 22),
-            NFMicButton(recording: true, onTap: _next),
+            NFMicButton(recording: _listening, onTap: _finish),
             const Padding(
-              padding: EdgeInsets.only(top: 0),
-              child: Text('Tap to finish',
-                  style: TextStyle(fontSize: 13, color: AppColors.textTertiary)),
+              padding: EdgeInsets.only(top: 4),
+              child: Text(
+                'Tap to finish',
+                style: TextStyle(fontSize: 13, color: AppColors.textTertiary),
+              ),
             ),
           ],
         ),
@@ -103,8 +182,9 @@ class _WaveformState extends State<_Waveform>
   void initState() {
     super.initState();
     _c = AnimationController(
-        vsync: this, duration: const Duration(milliseconds: 1200))
-      ..repeat();
+      vsync: this,
+      duration: const Duration(milliseconds: 1200),
+    )..repeat();
   }
 
   @override
@@ -145,7 +225,7 @@ class _WaveformState extends State<_Waveform>
       width: 3,
       height: baseHeight * scaleY,
       decoration: BoxDecoration(
-        color: AppColors.blue.withOpacity(opacity.clamp(0, 1)),
+        color: AppColors.blue.withValues(alpha: opacity.clamp(0, 1)),
         borderRadius: BorderRadius.circular(3),
       ),
     );
