@@ -19,6 +19,14 @@ jobs:
           channel: 'stable'
           cache: true
 
+      - name: Create .env
+        run: |
+          cat > .env <<EOF
+          GROQ_API_KEY=${{ secrets.GROQ_API_KEY }}
+          FIREBASE_PROJECT_ID=${{ secrets.FIREBASE_PROJECT_ID }}
+          GEMMA_API_KEY=${{ secrets.GEMMA_API_KEY }}
+          EOF
+
       - name: Inject Firebase config
         run: |
           echo "${{ secrets.GOOGLE_SERVICES_JSON }}" | base64 --decode > android/app/google-services.json
