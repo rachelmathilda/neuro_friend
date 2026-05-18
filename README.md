@@ -8,8 +8,6 @@ A local-first AI companion for individuals with ADHD and Autism, built on Gemma 
 
 Neuro Friend helps neurodivergent users navigate daily life through four core AI-powered features: focus assistance, social scripting, schedule management, and sensory overwhelm support. All inference runs on-device via Google AI Edge LiteRT with no internet required for core functionality.
 
-Built for the [Gemma 4 Good Hackathon](https://www.kaggle.com/competitions/gemma-4-good-hackathon), targeting Unsloth, LiteRT, and Cactus prize categories.
-
 ## Features
 
 - **Focus Check-in** helps users start and maintain tasks with concrete, non-judgmental first-step prompts
@@ -49,7 +47,6 @@ On first launch, the app will prompt to download the Gemma 4 model (~1.2GB). Dee
 - [Gemma 4 on Kaggle](https://www.kaggle.com/models/google/gemma-4)
 - [Google AI Edge LiteRT](https://ai.google.dev/edge/mediapipe/solutions/genai/llm_inference/android)
 - [MediaPipe LLM Inference](https://github.com/google-ai-edge/mediapipe-samples/tree/main/examples/llm_inference/android)
-- [Unsloth](https://github.com/unslothai/unsloth)
 - [AI Edge Torch](https://github.com/google-ai-edge/ai-edge-torch)
 - [Groq API](https://console.groq.com/docs/openai)
 
