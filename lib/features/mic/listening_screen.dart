@@ -20,77 +20,126 @@ class _ListeningScreenState extends State<ListeningScreen> {
 
   int _secs = 0;
   Timer? _ticker;
-  Timer? _silenceTimer;
 
   String _transcript = '';
   String _latestTranscript = '';
+
   bool _listening = false;
   bool _finishing = false;
+
   String _statusMsg = 'Initialising…';
 
   @override
   void initState() {
     super.initState();
+
     _ticker = Timer.periodic(const Duration(seconds: 1), (_) {
-      if (mounted) setState(() => _secs++);
+      if (mounted && _listening) {
+        setState(() => _secs++);
+      }
     });
+
     _initAndStart();
   }
 
   Future<void> _initAndStart() async {
     final ok = await _stt.init();
+
     if (!mounted) return;
+
     if (ok) {
-      setState(() => _statusMsg = 'Listening…');
+      setState(() {
+        _statusMsg = 'Listening…';
+      });
+
       _startListening();
     } else {
-      setState(() => _statusMsg = 'Mic unavailable — tap to retry');
+      setState(() {
+        _statusMsg = 'Mic unavailable — tap to retry';
+      });
     }
   }
 
   void _startListening() {
-    if (_stt.isListening) return;
+    if (_finishing) return;
+
     _stt.startListening(
       localeId: 'en_US',
+
       onResult: (text, isFinal) {
+        if (text.trim().isEmpty) return;
+
         _latestTranscript = text;
+
         if (!mounted) return;
-        setState(() => _transcript = text);
-        if (isFinal && text.trim().isNotEmpty) {
-          _doFinish();
+
+        setState(() {
+          _transcript = text;
+        });
+      },
+
+      onStatus: (status) async {
+        debugPrint('LISTEN STATUS: $status');
+
+        // Android native STT suka auto-stop sendiri
+        // jadi kita restart otomatis SELAMA user belum finish
+        if (!_finishing &&
+            mounted &&
+            (status == 'done' || status == 'notListening')) {
+          await Future.delayed(const Duration(milliseconds: 500));
+
+          if (!_finishing) {
+            debugPrint('RESTARTING STT...');
+            _startListening();
+          }
         }
       },
     );
-    if (mounted) setState(() => _listening = true);
+
+    if (mounted) {
+      setState(() {
+        _listening = true;
+        _statusMsg = 'Listening…';
+      });
+    }
   }
 
-  void _finish() {
-    _silenceTimer?.cancel();
-    _stt.stopListening();
-    Timer(const Duration(milliseconds: 300), _doFinish);
+  void _finish() async {
+    if (_finishing) return;
+
+    _finishing = true;
+
+    setState(() {
+      _statusMsg = 'Processing…';
+      _listening = false;
+    });
+
+    await _stt.stopListening();
+
+    Future.delayed(const Duration(milliseconds: 300), _doFinish);
   }
 
   void _doFinish() {
-    if (_finishing) return;
-    _finishing = true;
     _ticker?.cancel();
-    _silenceTimer?.cancel();
+
     if (!mounted) return;
+
     final transcript = _latestTranscript.trim().isEmpty
         ? 'No speech captured.'
         : _latestTranscript.trim();
+
     debugPrint('ListeningScreen navigating with: $transcript');
+
     Navigator.pushReplacementNamed(
       context,
       AppRoutes.intent,
-      arguments: transcript, // ← String langsung
+      arguments: transcript,
     );
   }
 
   @override
   void dispose() {
     _ticker?.cancel();
-    _silenceTimer?.cancel();
     _stt.stopListening();
     super.dispose();
   }
@@ -113,9 +162,13 @@ class _ListeningScreenState extends State<ListeningScreen> {
                 color: AppColors.textSecondary,
               ),
             ),
+
             const SizedBox(height: 10),
+
             const NFMascot(size: 90, mood: MascotMood.listening),
+
             const SizedBox(height: 8),
+
             Container(
               width: 240,
               height: 110,
@@ -141,7 +194,9 @@ class _ListeningScreenState extends State<ListeningScreen> {
                       ),
                     ),
             ),
+
             const SizedBox(height: 12),
+
             Text(
               '$mm:$ss',
               style: const TextStyle(
@@ -151,8 +206,11 @@ class _ListeningScreenState extends State<ListeningScreen> {
                 color: AppColors.textSecondary,
               ),
             ),
+
             const SizedBox(height: 22),
+
             NFMicButton(recording: _listening, onTap: _finish),
+
             const Padding(
               padding: EdgeInsets.only(top: 4),
               child: Text(
@@ -181,6 +239,7 @@ class _WaveformState extends State<_Waveform>
   @override
   void initState() {
     super.initState();
+
     _c = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 1200),
@@ -196,6 +255,7 @@ class _WaveformState extends State<_Waveform>
   @override
   Widget build(BuildContext context) {
     const count = 26;
+
     return AnimatedBuilder(
       animation: _c,
       builder: (_, __) {
@@ -218,9 +278,13 @@ class _WaveformState extends State<_Waveform>
 
   Widget _bar(int i) {
     final baseHeight = 8 + (i * 7) % 32;
+
     final phase = ((_c.value + (i % 8) * 0.09) % 1.0);
+
     final scaleY = 0.4 + 1.2 * (0.5 + 0.5 * sin(phase * 2 * pi));
+
     final opacity = 0.45 + ((i * 13) % 6) / 10;
+
     return Container(
       width: 3,
       height: baseHeight * scaleY,
