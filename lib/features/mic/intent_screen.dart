@@ -60,27 +60,42 @@ class IntentScreen extends StatefulWidget {
 class _IntentScreenState extends State<IntentScreen> {
   IntentKind? _selected;
   bool _detecting = true;
-  bool _navigated = false; // ← tambah ini
+  bool _navigated = false;
 
   Future<void> _detect(String transcript) async {
-    final kind = await GemmaService().detectIntent(transcript);
-    if (!mounted || _navigated) return; // ← cek _navigated
+    final kindString = await GemmaService().detectIntent(transcript);
+
+    final kind = switch (kindString) {
+      'brain' => IntentKind.brain,
+      'emotional' => IntentKind.emotional,
+      'task' => IntentKind.task,
+      _ => IntentKind.brain,
+    };
+
+    if (!mounted || _navigated) return;
+
     setState(() {
       _selected = kind;
       _detecting = false;
     });
+
     await Future.delayed(const Duration(milliseconds: 800));
-    if (mounted && !_navigated) _go(kind, transcript);
+
+    if (mounted && !_navigated) {
+      _go(kind, transcript);
+    }
   }
 
   void _go(IntentKind k, String transcript) {
     if (!mounted || _navigated) return;
-    _navigated = true; // ← set sebelum navigate
+    _navigated = true;
+
     final route = switch (k) {
       IntentKind.brain => AppRoutes.brainResult,
       IntentKind.emotional => AppRoutes.emotional,
       IntentKind.task => AppRoutes.taskSteps,
     };
+
     Navigator.pushReplacementNamed(
       context,
       AppRoutes.processing,
