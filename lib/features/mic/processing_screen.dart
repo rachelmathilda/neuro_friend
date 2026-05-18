@@ -224,7 +224,7 @@ class _ErrorView extends StatelessWidget {
           const NFMascot(size: 80, mood: MascotMood.calm),
           const SizedBox(height: 16),
           const Text(
-            'Hmm, otakku lagi lambat.\nCoba lagi ya.',
+            'Hmm, my brain is being slow.\nLet\'s try again.',
             textAlign: TextAlign.center,
             style: TextStyle(
                 fontSize: 14,
@@ -234,12 +234,12 @@ class _ErrorView extends StatelessWidget {
           const SizedBox(height: 18),
           FilledButton(
             onPressed: onRetry,
-            child: const Text('Coba lagi'),
+            child: const Text('Try again'),
           ),
           const SizedBox(height: 8),
           TextButton(
             onPressed: () => Navigator.popUntil(context, (r) => r.isFirst),
-            child: const Text('Balik'),
+            child: const Text('Back'),
           ),
         ],
       ),
