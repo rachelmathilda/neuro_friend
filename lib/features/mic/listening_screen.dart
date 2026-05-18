@@ -17,123 +17,59 @@ class ListeningScreen extends StatefulWidget {
 
 class _ListeningScreenState extends State<ListeningScreen> {
   final SttService _stt = SttService();
-
   int _secs = 0;
   Timer? _ticker;
-
   String _transcript = '';
-  String _latestTranscript = '';
-
-  bool _listening = false;
-  bool _finishing = false;
-
-  String _statusMsg = 'Initialising…';
+  bool _starting = true;
 
   @override
   void initState() {
     super.initState();
-
     _ticker = Timer.periodic(const Duration(seconds: 1), (_) {
-      if (mounted && _listening) {
-        setState(() => _secs++);
-      }
+      if (mounted) setState(() => _secs++);
     });
-
-    _initAndStart();
+    _start();
   }
 
-  Future<void> _initAndStart() async {
+  Future<void> _start() async {
     final ok = await _stt.init();
-
     if (!mounted) return;
-
-    if (ok) {
-      setState(() {
-        _statusMsg = 'Listening…';
-      });
-
-      _startListening();
-    } else {
-      setState(() {
-        _statusMsg = 'Mic unavailable — tap to retry';
-      });
+    if (!ok) {
+      setState(() => _starting = false);
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Mic unavailable. Check microphone permission.')),
+      );
+      return;
     }
-  }
-
-  void _startListening() {
-    if (_finishing) return;
-
-    _stt.startListening(
-      localeId: 'en_US',
-
-      onResult: (text, isFinal) {
-        if (text.trim().isEmpty) return;
-
-        _latestTranscript = text;
-
+    await _stt.startListening(
+      onResult: (text, _) {
         if (!mounted) return;
-
-        setState(() {
-          _transcript = text;
-        });
-      },
-
-      onStatus: (status) async {
-        debugPrint('LISTEN STATUS: $status');
-
-        // Android native STT suka auto-stop sendiri
-        // jadi kita restart otomatis SELAMA user belum finish
-        if (!_finishing &&
-            mounted &&
-            (status == 'done' || status == 'notListening')) {
-          await Future.delayed(const Duration(milliseconds: 500));
-
-          if (!_finishing) {
-            debugPrint('RESTARTING STT...');
-            _startListening();
-          }
-        }
+        setState(() => _transcript = text);
       },
     );
-
-    if (mounted) {
-      setState(() {
-        _listening = true;
-        _statusMsg = 'Listening…';
-      });
-    }
+    if (mounted) setState(() => _starting = false);
   }
 
-  void _finish() async {
-    if (_finishing) return;
-
-    _finishing = true;
-
-    setState(() {
-      _statusMsg = 'Processing…';
-      _listening = false;
-    });
-
-    await _stt.stopListening();
-
-    Future.delayed(const Duration(milliseconds: 300), _doFinish);
-  }
-
-  void _doFinish() {
+  Future<void> _finish() async {
     _ticker?.cancel();
-
+    await _stt.stopListening();
     if (!mounted) return;
-
-    final transcript = _latestTranscript.trim().isEmpty
-        ? 'No speech captured.'
-        : _latestTranscript.trim();
-
-    debugPrint('ListeningScreen navigating with: $transcript');
-
+    final text = _transcript.trim();
+    if (text.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("Didn't catch anything. Try again.")),
+      );
+      // restart capture
+      _ticker = Timer.periodic(const Duration(seconds: 1), (_) {
+        if (mounted) setState(() => _secs++);
+      });
+      _start();
+      return;
+    }
     Navigator.pushReplacementNamed(
       context,
       AppRoutes.intent,
-      arguments: transcript,
+      arguments: text,
     );
   }
 
@@ -155,68 +91,46 @@ class _ListeningScreenState extends State<ListeningScreen> {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Text(
-              _statusMsg,
-              style: const TextStyle(
-                fontSize: 13,
-                color: AppColors.textSecondary,
-              ),
-            ),
-
+            Text(_starting ? 'Preparing mic…' : 'Listening…',
+                style: const TextStyle(fontSize: 13, color: AppColors.textSecondary)),
             const SizedBox(height: 10),
-
             const NFMascot(size: 90, mood: MascotMood.listening),
-
             const SizedBox(height: 8),
-
             Container(
-              width: 240,
-              height: 110,
+              width: 260,
+              constraints: const BoxConstraints(minHeight: 110),
               decoration: BoxDecoration(
                 color: AppColors.blueSoft,
                 borderRadius: BorderRadius.circular(28),
               ),
+              padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
               alignment: Alignment.center,
               child: _transcript.isEmpty
                   ? const _Waveform()
-                  : Padding(
-                      padding: const EdgeInsets.symmetric(horizontal: 14),
-                      child: Text(
-                        _transcript,
-                        maxLines: 4,
-                        overflow: TextOverflow.ellipsis,
-                        textAlign: TextAlign.center,
-                        style: const TextStyle(
-                          fontSize: 12,
-                          color: AppColors.textPrimary,
+                  : Text(
+                      _transcript,
+                      textAlign: TextAlign.center,
+                      maxLines: 4,
+                      overflow: TextOverflow.ellipsis,
+                      style: const TextStyle(
+                          fontSize: 13.5,
                           height: 1.4,
-                        ),
-                      ),
+                          color: AppColors.textPrimary),
                     ),
             ),
-
             const SizedBox(height: 12),
-
-            Text(
-              '$mm:$ss',
-              style: const TextStyle(
-                fontSize: 15,
-                fontWeight: FontWeight.w600,
-                letterSpacing: 0.5,
-                color: AppColors.textSecondary,
-              ),
-            ),
-
+            Text('$mm:$ss',
+                style: const TextStyle(
+                    fontSize: 15,
+                    fontWeight: FontWeight.w600,
+                    letterSpacing: 0.5,
+                    color: AppColors.textSecondary)),
             const SizedBox(height: 22),
-
-            NFMicButton(recording: _listening, onTap: _finish),
-
+            NFMicButton(recording: true, onTap: _finish),
             const Padding(
-              padding: EdgeInsets.only(top: 4),
-              child: Text(
-                'Tap to finish',
-                style: TextStyle(fontSize: 13, color: AppColors.textTertiary),
-              ),
+              padding: EdgeInsets.only(top: 0),
+              child: Text('Tap to finish',
+                  style: TextStyle(fontSize: 13, color: AppColors.textTertiary)),
             ),
           ],
         ),
@@ -239,11 +153,9 @@ class _WaveformState extends State<_Waveform>
   @override
   void initState() {
     super.initState();
-
     _c = AnimationController(
-      vsync: this,
-      duration: const Duration(milliseconds: 1200),
-    )..repeat();
+        vsync: this, duration: const Duration(milliseconds: 1200))
+      ..repeat();
   }
 
   @override
@@ -255,7 +167,6 @@ class _WaveformState extends State<_Waveform>
   @override
   Widget build(BuildContext context) {
     const count = 26;
-
     return AnimatedBuilder(
       animation: _c,
       builder: (_, __) {
@@ -278,18 +189,14 @@ class _WaveformState extends State<_Waveform>
 
   Widget _bar(int i) {
     final baseHeight = 8 + (i * 7) % 32;
-
     final phase = ((_c.value + (i % 8) * 0.09) % 1.0);
-
     final scaleY = 0.4 + 1.2 * (0.5 + 0.5 * sin(phase * 2 * pi));
-
     final opacity = 0.45 + ((i * 13) % 6) / 10;
-
     return Container(
       width: 3,
       height: baseHeight * scaleY,
       decoration: BoxDecoration(
-        color: AppColors.blue.withValues(alpha: opacity.clamp(0, 1)),
+        color: AppColors.blue.withOpacity(opacity.clamp(0, 1)),
         borderRadius: BorderRadius.circular(3),
       ),
     );

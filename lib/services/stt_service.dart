@@ -29,7 +29,7 @@ class SttService {
   Future<void> startListening({
     required void Function(String text, bool isFinal) onResult,
     void Function(String status)? onStatus,
-    String localeId = 'id_ID',
+    String localeId = 'en_US',
   }) async {
     if (!_initialized) {
       await init();

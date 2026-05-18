@@ -1,7 +1,5 @@
 import 'package:flutter/material.dart';
 import '../../features/splash/splash_screen.dart';
-import '../../features/auth/register_screen.dart';
-import '../../features/auth/login_screen.dart';
 import '../../features/shell/main_shell.dart';
 import '../../features/mic/listening_screen.dart';
 import '../../features/mic/intent_screen.dart';
@@ -17,8 +15,6 @@ class AppRoutes {
   AppRoutes._();
 
   static const String splash = '/';
-  static const String register = '/register';
-  static const String login = '/login';
 
   // Main shell tabs
   static const String home = '/home';
@@ -44,55 +40,44 @@ class AppRouter {
   AppRouter._();
 
   static Route<dynamic> onGenerateRoute(RouteSettings settings) {
+    Route<dynamic> build(Widget page) =>
+        MaterialPageRoute(builder: (_) => page, settings: settings);
     switch (settings.name) {
       case AppRoutes.splash:
-        return _build(const SplashScreen());
-      case AppRoutes.register:
-        return _build(const RegisterScreen());
-      case AppRoutes.login:
-        return _build(const LoginScreen());
+        return build(const SplashScreen());
 
       case AppRoutes.home:
-        return _build(const MainShell(initialTab: NFTab.home));
+        return build(const MainShell(initialTab: NFTab.home));
       case AppRoutes.tasks:
-        return _build(const MainShell(initialTab: NFTab.tasks));
+        return build(const MainShell(initialTab: NFTab.tasks));
       case AppRoutes.mic:
-        return _build(const MainShell(initialTab: NFTab.mic));
+        return build(const MainShell(initialTab: NFTab.mic));
       case AppRoutes.brainDumps:
-        return _build(const MainShell(initialTab: NFTab.brainDumps));
+        return build(const MainShell(initialTab: NFTab.brainDumps));
       case AppRoutes.profile:
-        return _build(const MainShell(initialTab: NFTab.profile));
+        return build(const MainShell(initialTab: NFTab.profile));
 
       case AppRoutes.listening:
-        return _build(const ListeningScreen());
+        return build(const ListeningScreen());
       case AppRoutes.intent:
-        final transcript = settings.arguments as String? ?? '';
-        return _build(IntentScreen(transcript: transcript));
+        return build(IntentScreen(transcript: (settings.arguments as String?) ?? ''));
       case AppRoutes.processing:
-        final args = settings.arguments as Map<String, dynamic>? ?? {};
-        return _build(
-          ProcessingScreen(
-            nextRoute: args['nextRoute'] as String? ?? AppRoutes.brainResult,
-            transcript: args['transcript'] as String? ?? '',
-            intent: args['intent'] as String? ?? 'brain',
-          ),
-        );
+        return build(ProcessingScreen(arguments: settings.arguments));
+
       case AppRoutes.brainResult:
-        return _build(const BrainResultScreen());
+        return build(BrainResultScreen(entryId: settings.arguments as String?));
       case AppRoutes.emotional:
-        return _build(const EmotionalScreen());
+        return build(const EmotionalScreen());
       case AppRoutes.taskSteps:
-        return _build(const TaskStepsScreen());
+        return build(const TaskStepsScreen());
       case AppRoutes.taskTimer:
-        return _build(const TaskTimerScreen());
+        return build(const TaskTimerScreen());
       case AppRoutes.taskProgress:
-        return _build(const TaskProgressScreen());
+        return build(const TaskProgressScreen());
 
       default:
-        return _build(const SplashScreen());
+        return build(const SplashScreen());
     }
   }
 
-  static MaterialPageRoute _build(Widget page) =>
-      MaterialPageRoute(builder: (_) => page);
 }

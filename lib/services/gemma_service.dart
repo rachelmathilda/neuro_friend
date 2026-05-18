@@ -1,117 +1,111 @@
 import 'package:connectivity_plus/connectivity_plus.dart';
-import 'package:flutter/foundation.dart';
 import 'groq_service.dart';
 
 class GemmaService {
   final GroqService _groq = GroqService();
 
-  // ────────────────────────────────────────────────────────────────────────────
-  // SYSTEM PROMPTS
-  // ────────────────────────────────────────────────────────────────────────────
+  static const String _focusCheckinSystem = '''
+You are Neuro Friend, an AI assistant for neurodivergent users (ADHD/autism).
+
+Rules:
+- Always reply in English.
+- Keep responses warm, calming, supportive, and concise.
+- Maximum 2 short sentences.
+- Sound natural and conversational.
+- Never sound robotic or overly formal.
+- If the user sounds overwhelmed, validate feelings first before giving suggestions.
+- If the user mentions planning, scheduling, deadlines, meetings, studying, or tasks, help organize them clearly.
+''';
 
   static const String _brainDumpSystem = '''
-You are Neuro Friend, an AI assistant for neurodivergent users.
+You are organizing a brain dump from someone with ADHD.
+Take their raw speech and categorize EVERY item into exactly one of 3 categories.
+Respond ONLY in JSON format, no markdown, no preamble.
 
-The user just did a voice brain dump. Extract everything they said into structured categories.
+Categories:
+- tasks: actionable things they need to do
+- ideas: creative thoughts, project ideas, things they want to explore
+- events: scheduled things with a time/date
 
-Return ONLY valid JSON.
-No markdown.
-No explanation.
-No reasoning.
-No bullet points outside JSON.
-
-Format:
+JSON format:
 {
-  "summary": "one short sentence summarising what was said",
-  "tasks": ["string"],
-  "ideas": ["string"],
-  "events": ["string"],
-  "worries": ["string"]
+  "tasks": ["item 1", "item 2"],
+  "ideas": ["item 1"],
+  "events": ["item 1"],
+  "summary": "short 1-sentence summary in English"
 }
 
 Rules:
-- Tasks: actionable things they need to do
-- Ideas: creative thoughts, plans, things they want to explore
-- Events: scheduled things, meetings, appointments
-- Worries: anxieties, concerns, fears
-- Each item is short and clear
-- Arrays can be empty
-- English only
+- Reply in English (casual, friendly).
+- Items must be short phrases, not full sentences.
+- If a category has no items, return an empty array.
+- Never include explanations outside the JSON.
+- Do not include a worries category — emotional content is handled elsewhere.
 ''';
 
-  static const String _emotionalCheckinSystem = '''
-You are Neuro Friend, a warm AI companion for neurodivergent users.
+  static const String _taskCoachSystem = '''
+You are a task coach for someone with ADHD. They have ONE specific task they want help working on.
 
-Return ONLY valid JSON.
-No markdown.
-No explanations.
-No reasoning.
+Break the task into 3–5 micro-steps. Each step must be doable in 2–10 minutes and feel almost embarrassingly small — the goal is to lower the activation barrier.
 
-Format:
+Respond ONLY with JSON in this exact shape:
 {
-  "detected_emotion": "string",
-  "emotion_label": "string",
-  "validation_message": "string",
-  "coping_tips": [
-    {
-      "emoji": "string",
-      "title": "string",
-      "body": "string"
-    }
+  "taskTitle": "short rephrased version of the task",
+  "totalMinutes": 0,
+  "firstMove": "one tiny physical action to start RIGHT NOW (under 30 seconds)",
+  "steps": [
+    {"title": "short step title", "detail": "one short sentence on how to do it", "minutes": 5},
+    {"title": "...", "detail": "...", "minutes": 5}
   ]
 }
 
 Rules:
-- coping_tips must contain exactly 3 or 4 items
-- warm and supportive tone
-- concise
-- English only
+- Reply in English. Warm, casual, encouraging.
+- totalMinutes must equal the sum of step minutes.
+- Each step.title is a verb phrase ("Open the doc", "Draft 3 bullet points").
+- Each step.detail is concrete and specific.
+- firstMove is a body-level action (e.g. "Open your laptop", "Put your phone face-down").
+- Never include explanations outside the JSON.
 ''';
 
-  static const String _taskCoachSystem = '''
-You are Neuro Friend, an AI assistant for neurodivergent users (ADHD/autism).
+  static const String _emotionalSystem = '''
+You are Neuro Friend, supporting a neurodivergent user who is expressing emotion.
 
-The user describes ONE focused goal.
-That goal may contain multiple sequential actions or schedule-related steps.
-
-Break the goal into tiny actionable steps.
-
-Return ONLY valid JSON.
-No markdown.
-No explanations.
-No reasoning.
-
-Format:
+Given the user's voice transcript, respond ONLY with JSON in this exact shape:
 {
-  "task_title": "cleaned up task name",
-  "why_hard": "one sentence",
-  "steps": [
-    {
-      "title": "step title",
-      "detail": "one sentence instruction",
-      "minutes": 5
-    }
-  ],
-  "first_move": "smallest possible action"
+  "emotion_label": "short label (3-5 words) naming what they seem to feel",
+  "validation_message": "1-2 warm sentences validating their feelings — no advice yet",
+  "coping_tips": [
+    {"emoji": "🌬️", "title": "short tip title", "body": "one short sentence with a concrete action"},
+    {"emoji": "📝", "title": "...", "body": "..."},
+    {"emoji": "🐾", "title": "...", "body": "..."}
+  ]
 }
 
 Rules:
-- 5 to 7 steps
-- each step under 10 minutes
-- first_move under 2 minutes
-- supportive ADHD-friendly tone
-- English only
+- Reply in English. Casual, warm, non-clinical.
+- Exactly 3 coping_tips. Each tip should be doable in under 5 minutes.
+- Pick emojis that fit the tip (breathing, writing, grounding, movement, sensory, etc.).
+- Never include explanations outside the JSON.
 ''';
 
-  static const String _focusCheckinSystem = '''
-You are Neuro Friend.
+  static const String _intentSystem = '''
+You classify a user's voice message into ONE of three intents.
 
-Rules:
-- English only
-- warm supportive tone
-- concise
-- max 2 short sentences
-- natural conversational style
+Intents:
+- emotional: the user is expressing ANY feeling or emotional state (happy, sad, anxious, overwhelmed, excited, frustrated, lonely, grateful, etc.), or asking for emotional support. If the message is primarily about how they feel, choose emotional.
+- task: ONE specific task they want help breaking down or working on.
+- brain: a brain dump — multiple unrelated items (tasks, ideas, events) jumbled together with no strong emotional content.
+
+Respond with ONLY the intent word, lowercase, nothing else. No explanation, no punctuation.
+
+Examples:
+- "I'm so overwhelmed right now" -> emotional
+- "I feel so happy today" -> emotional
+- "I'm anxious about tomorrow" -> emotional
+- "I need to finish the Q2 report, buy milk, and meeting at 3" -> brain
+- "Help me work on my presentation slides" -> task
+- "Tomorrow I have a meeting, I need to buy groceries, and brainstorm a new feature" -> brain
 ''';
 
   static const String _socialScriptSystem = '''
@@ -120,10 +114,10 @@ You are Neuro Friend.
 Create a ready-to-send social message.
 
 Rules:
-- English only
-- casual but polite
-- max 2 short sentences
-- return ONLY the message
+- English only.
+- Casual but polite.
+- Maximum 2 short sentences.
+- Return only the message itself.
 ''';
 
   static const String _sensorySystem = '''
@@ -132,307 +126,154 @@ You are Neuro Friend.
 The user is experiencing sensory overwhelm.
 
 Rules:
-- English only
-- calm grounding tone
-- short response
-- one immediate actionable grounding technique
+- English only.
+- Calm and grounding tone.
+- Short response.
+- Give one immediate actionable grounding technique.
 ''';
-
-  static const String _intentSystem = '''
-You are an intent classifier.
-
-Return ONLY one word:
-emotional
-task
-brain
-
-Definitions:
-
-emotional:
-The user mainly talks about feelings or emotional distress.
-
-task:
-The user mainly talks about ONE specific goal/project.
-Even if it has multiple steps, all steps belong to the SAME outcome.
-
-brain:
-The user jumps between MULTIPLE unrelated tasks, thoughts, reminders, chores, or ideas.
-
-VERY IMPORTANT:
-
-If the message contains MANY unrelated activities,
-ALWAYS choose brain.
-
-Examples:
-
-"finish my math assignment and submit it"
-task
-
-"clean the kitchen then wash dishes then mop the floor"
-task
-
-"buy groceries text mom make music do homework take a bath"
-brain
-
-"I feel overwhelmed and exhausted"
-emotional
-
-Reply with ONLY one word.
-No explanations.
-''';
-
-  // ────────────────────────────────────────────────────────────────────────────
-  // CONNECTIVITY
-  // ────────────────────────────────────────────────────────────────────────────
 
   Future<bool> get _isOnline async {
     final result = await Connectivity().checkConnectivity();
     return result.any((r) => r != ConnectivityResult.none);
   }
 
-  // ────────────────────────────────────────────────────────────────────────────
-  // BRAIN DUMP
-  // ────────────────────────────────────────────────────────────────────────────
-
-  Future<Map<String, dynamic>> processBrainDump(String transcript) async {
-    if (!await _isOnline) {
-      return _offlineBrainDump();
-    }
-
-    try {
-      return await _groq.chatJson(
-        systemPrompt: _brainDumpSystem,
-        userMessage: transcript,
-        maxTokens: 1024,
-      );
-    } catch (e) {
-      debugPrint('processBrainDump error: $e');
-      return _offlineBrainDump();
-    }
-  }
-
-  Map<String, dynamic> _offlineBrainDump() => {
-    'summary': 'Offline mode active.',
-    'tasks': [],
-    'ideas': [],
-    'events': [],
-    'worries': [],
-    'error': 'offline',
-  };
-
-  // ────────────────────────────────────────────────────────────────────────────
-  // EMOTIONAL CHECK-IN
-  // ────────────────────────────────────────────────────────────────────────────
-
-  Future<Map<String, dynamic>> processEmotionalCheckin(
-    String transcript,
-  ) async {
-    if (!await _isOnline) {
-      return _offlineEmotionalResponse();
-    }
-
-    try {
-      return await _groq.chatJson(
-        systemPrompt: _emotionalCheckinSystem,
-        userMessage: transcript,
-        maxTokens: 700,
-      );
-    } catch (e) {
-      debugPrint('processEmotionalCheckin error: $e');
-      return _offlineEmotionalResponse();
-    }
-  }
-
-  Map<String, dynamic> _offlineEmotionalResponse() => {
-    'detected_emotion': 'unknown',
-    'emotion_label': 'Heavy feelings',
-    'validation_message':
-        "You're offline right now, but your feelings still matter.",
-    'coping_tips': [
-      {
-        'emoji': '🌬️',
-        'title': 'Slow breathing',
-        'body': 'Take 3 slow breaths and unclench your shoulders.',
-      },
-      {
-        'emoji': '💧',
-        'title': 'Hydrate',
-        'body': 'Drink some water and step away for 2 minutes.',
-      },
-      {
-        'emoji': '🪶',
-        'title': 'Tiny step',
-        'body': 'Pick the easiest possible thing and do only that.',
-      },
-    ],
-    'error': 'offline',
-  };
-
-  // ────────────────────────────────────────────────────────────────────────────
-  // TASK COACH
-  // ────────────────────────────────────────────────────────────────────────────
-
-  Future<Map<String, dynamic>> breakdownTask(String transcript) async {
-    if (!await _isOnline) {
-      return _offlineTaskResponse(transcript);
-    }
-
-    try {
-      return await _groq.chatJson(
-        systemPrompt: _taskCoachSystem,
-        userMessage: transcript,
-        maxTokens: 768,
-      );
-    } catch (e) {
-      debugPrint('breakdownTask error: $e');
-      return _offlineTaskResponse(transcript);
-    }
-  }
-
-  Future<Map<String, dynamic>> processTaskCoach(String transcript) =>
-      breakdownTask(transcript);
-
-  Map<String, dynamic> _offlineTaskResponse(String transcript) => {
-    'task_title': transcript,
-    'why_hard': 'Starting can feel overwhelming when offline.',
-    'steps': [],
-    'first_move': 'Write the task on paper.',
-    'error': 'offline',
-  };
-
-  // ────────────────────────────────────────────────────────────────────────────
-  // FOCUS / SOCIAL / SENSORY
-  // ────────────────────────────────────────────────────────────────────────────
-
   Future<String> focusCheckin(String userInput) async {
+    if (!await _isOnline) return _offlineResponse();
+
+    return _groq.chat(
+      systemPrompt: _focusCheckinSystem,
+      userMessage: userInput,
+      maxTokens: 180,
+    );
+  }
+
+  Future<Map<String, dynamic>> processBrainDump(String brainDump) async {
     if (!await _isOnline) {
-      return _offlineResponse();
+      return {
+        'tasks': <String>[],
+        'ideas': <String>[],
+        'events': <String>[],
+        'summary': '',
+      };
     }
 
-    try {
-      return await _groq.chat(
-        systemPrompt: _focusCheckinSystem,
-        userMessage: userInput,
-        maxTokens: 180,
-      );
-    } catch (e) {
-      debugPrint('focusCheckin error: $e');
-      return _offlineResponse();
-    }
+    return _groq.chatJson(
+      systemPrompt: _brainDumpSystem,
+      userMessage: brainDump,
+      maxTokens: 1024,
+    );
   }
 
   Future<String> generateSocialScript(String situation) async {
-    if (!await _isOnline) {
-      return _offlineResponse();
-    }
+    if (!await _isOnline) return _offlineResponse();
 
-    try {
-      return await _groq.chat(
-        systemPrompt: _socialScriptSystem,
-        userMessage: situation,
-        maxTokens: 120,
-      );
-    } catch (e) {
-      debugPrint('generateSocialScript error: $e');
-      return _offlineResponse();
-    }
+    return _groq.chat(
+      systemPrompt: _socialScriptSystem,
+      userMessage: situation,
+      maxTokens: 120,
+    );
   }
 
   Future<String> sensorySupport(String situation) async {
-    if (!await _isOnline) {
-      return _offlineResponse();
-    }
+    if (!await _isOnline) return _offlineResponse();
 
-    try {
-      return await _groq.chat(
-        systemPrompt: _sensorySystem,
-        userMessage: situation,
-        maxTokens: 120,
-      );
-    } catch (e) {
-      debugPrint('sensorySupport error: $e');
-      return _offlineResponse();
-    }
+    return _groq.chat(
+      systemPrompt: _sensorySystem,
+      userMessage: situation,
+      maxTokens: 120,
+    );
   }
-
-  // ────────────────────────────────────────────────────────────────────────────
-  // INTENT DETECTION
-  // ────────────────────────────────────────────────────────────────────────────
-
-  Future<String> detectIntent(String transcript) async {
-    try {
-      final response = await _groq.chat(
-        systemPrompt: _intentSystem,
-        userMessage: transcript,
-        maxTokens: 10,
-      );
-
-      final text = response.toLowerCase().trim();
-
-      debugPrint('detectIntent raw text: $text');
-
-      final lines = text
-          .split('\n')
-          .map((e) => e.trim())
-          .where((e) => e.isNotEmpty)
-          .toList();
-
-      for (final line in lines.reversed) {
-        if (line == 'brain') return 'brain';
-        if (line == 'task') return 'task';
-        if (line == 'emotional') return 'emotional';
-
-        if (line.contains('brain')) return 'brain';
-        if (line.contains('task')) return 'task';
-        if (line.contains('emotional')) return 'emotional';
-      }
-
-      return _fallbackIntentString(transcript);
-    } catch (e) {
-      debugPrint('detectIntent error: $e');
-
-      return _fallbackIntentString(transcript);
-    }
-  }
-
-  String _fallbackIntentString(String text) {
-    final lower = text.toLowerCase();
-
-    const emotionalWords = [
-      'sad',
-      'stress',
-      'stressed',
-      'overwhelmed',
-      'anxious',
-      'anxiety',
-      'burnout',
-      'lonely',
-      'angry',
-      'upset',
-      'cry',
-      'tired',
-      'depressed',
-    ];
-
-    for (final word in emotionalWords) {
-      if (lower.contains(word)) {
-        return 'emotional';
-      }
-    }
-
-    final separators =
-        ','.allMatches(lower).length + ' and '.allMatches(lower).length;
-
-    if (separators >= 2) {
-      return 'brain';
-    }
-
-    return 'task';
-  }
-
-  // ────────────────────────────────────────────────────────────────────────────
 
   String _offlineResponse() {
     return 'You are offline right now. Please try again later.';
+  }
+
+  Future<Map<String, dynamic>> processTaskCoach(String transcript) async {
+    if (!await _isOnline) {
+      return {
+        'taskTitle': transcript,
+        'totalMinutes': 10,
+        'firstMove': 'Open your laptop and bring up the relevant doc.',
+        'steps': const [
+          {
+            'title': 'Write down what "done" looks like',
+            'detail': 'One sentence — what does finished look like?',
+            'minutes': 2,
+          },
+          {
+            'title': 'List the first 3 things needed',
+            'detail': "Don't overthink — whatever comes to mind.",
+            'minutes': 3,
+          },
+          {
+            'title': 'Start the very first thing',
+            'detail': 'Set a 5-minute timer and just begin.',
+            'minutes': 5,
+          },
+        ],
+      };
+    }
+
+    return _groq.chatJson(
+      systemPrompt: _taskCoachSystem,
+      userMessage: transcript,
+      maxTokens: 1024,
+    );
+  }
+
+  Future<Map<String, dynamic>> processEmotionalCheckin(String transcript) async {
+    if (!await _isOnline) {
+      return {
+        'emotion_label': 'Feeling overwhelmed',
+        'validation_message':
+            "It's okay to feel this way. You don't have to handle everything at once.",
+        'coping_tips': const [
+          {
+            'emoji': '🌬️',
+            'title': '4-4-6 breathing',
+            'body': 'Inhale 4s, hold 4s, exhale slowly 6s. Repeat 3–5 times.',
+          },
+          {
+            'emoji': '📝',
+            'title': 'Write it out',
+            'body':
+                "List 3 things on your mind. Don't sort — just let them out.",
+          },
+          {
+            'emoji': '🐾',
+            'title': 'Pick the smallest one',
+            'body':
+                'Take the lightest task, work 2 minutes. Momentum is what matters.',
+          },
+        ],
+      };
+    }
+
+    return _groq.chatJson(
+      systemPrompt: _emotionalSystem,
+      userMessage: transcript,
+      maxTokens: 768,
+    );
+  }
+
+  Future<String> detectIntent(String transcript) async {
+    if (!await _isOnline) return 'brain';
+    try {
+      final raw = await _groq.chat(
+        systemPrompt: _intentSystem,
+        userMessage: transcript,
+        maxTokens: 512,
+      );
+      final word = raw.trim().toLowerCase();
+      // ignore: avoid_print
+      print('Intent classification raw: "$word"');
+      if (word.contains('emotional')) return 'emotional';
+      if (word.contains('task')) return 'task';
+      return 'brain';
+    } catch (e) {
+      // ignore: avoid_print
+      print('Intent classification failed: $e');
+      return 'brain';
+    }
   }
 }

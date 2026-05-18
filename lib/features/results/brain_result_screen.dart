@@ -1,92 +1,68 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../core/constants/app_colors.dart';
 import '../../core/router/app_router.dart';
 import '../../core/widgets/nf_button.dart';
 import '../../core/widgets/nf_screen.dart';
-import '../../data/models/brain_dump_model.dart';
-import '../../data/repositories/brain_dump_repository.dart';
+import '../../data/models/brain_dump_entry.dart';
+import '../../providers/brain_dump_provider.dart';
+import '../../services/tts_service.dart';
 
-class BrainResultScreen extends StatefulWidget {
-  const BrainResultScreen({super.key});
-
-  @override
-  State<BrainResultScreen> createState() => _BrainResultScreenState();
+class _CatSpec {
+  final String label;
+  final Color color, bg, pill;
+  final IconData icon;
+  const _CatSpec(this.label, this.color, this.bg, this.pill, this.icon);
 }
 
-class _BrainResultScreenState extends State<BrainResultScreen> {
-  final _repo = BrainDumpRepository();
-  bool _saved = false;
+const _tasksSpec = _CatSpec('Tasks', AppColors.tasksAccent, AppColors.orangeSoft,
+    AppColors.orange, Icons.checklist_rounded);
+const _ideasSpec = _CatSpec('Ideas', AppColors.ideasAccent,
+    AppColors.lavenderSoft, AppColors.lavender, Icons.psychology_alt_outlined);
+const _eventsSpec = _CatSpec('Events', AppColors.navy, AppColors.blueSoft,
+    Color(0xFFA9C8F2), Icons.calendar_today_rounded);
+class BrainResultScreen extends ConsumerStatefulWidget {
+  final String? entryId;
+  const BrainResultScreen({super.key, this.entryId});
 
   @override
-  void didChangeDependencies() {
-    super.didChangeDependencies();
-    if (!_saved) {
-      _saved = true;
-      _saveIfValid();
-    }
+  ConsumerState<BrainResultScreen> createState() => _BrainResultScreenState();
+}
+
+class _BrainResultScreenState extends ConsumerState<BrainResultScreen> {
+  final TtsService _tts = TtsService();
+  bool _ttsSpoken = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _tts.init();
   }
 
-  Future<void> _saveIfValid() async {
-    final data =
-        ModalRoute.of(context)?.settings.arguments as Map<String, dynamic>?;
-    if (data == null || data.containsKey('error')) return;
-    final dump = BrainDumpModel.fromAiResult(data);
-    if (dump.taskCount + dump.ideaCount + dump.eventCount + dump.worryCount ==
-        0)
-      return;
-    await _repo.save(dump);
+  @override
+  void dispose() {
+    _tts.stop();
+    super.dispose();
+  }
+
+  BrainDumpEntry? _resolve() {
+    if (widget.entryId != null) {
+      return ref.watch(brainDumpByIdProvider(widget.entryId!));
+    }
+    final list = ref.watch(brainDumpListProvider);
+    return list.isEmpty ? null : list.first;
   }
 
   @override
   Widget build(BuildContext context) {
-    final data =
-        ModalRoute.of(context)?.settings.arguments as Map<String, dynamic>? ??
-        {};
-    final summary = data['summary'] as String? ?? 'Here\'s what you said.';
-    final tasks = _toList(data['tasks']);
-    final ideas = _toList(data['ideas']);
-    final events = _toList(data['events']);
-    final worries = _toList(data['worries']);
-    final hasError = data.containsKey('error');
+    final entry = _resolve();
 
-    final categories = [
-      if (tasks.isNotEmpty)
-        _CatData(
-          'Tasks',
-          AppColors.tasksAccent,
-          AppColors.orangeSoft,
-          AppColors.orange,
-          Icons.checklist_rounded,
-          tasks,
-        ),
-      if (ideas.isNotEmpty)
-        _CatData(
-          'Ideas',
-          AppColors.ideasAccent,
-          AppColors.lavenderSoft,
-          AppColors.lavender,
-          Icons.psychology_alt_outlined,
-          ideas,
-        ),
-      if (events.isNotEmpty)
-        _CatData(
-          'Events',
-          AppColors.navy,
-          AppColors.blueSoft,
-          const Color(0xFFA9C8F2),
-          Icons.calendar_today_rounded,
-          events,
-        ),
-      if (worries.isNotEmpty)
-        _CatData(
-          'Worries',
-          AppColors.worriesAccent,
-          AppColors.pinkSoft,
-          AppColors.pink,
-          Icons.favorite_outline_rounded,
-          worries,
-        ),
-    ];
+    if (entry != null && !_ttsSpoken && entry.summary.isNotEmpty) {
+      _ttsSpoken = true;
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        _tts.speak(entry.summary);
+      });
+    }
 
     return NFScreen(
       hideTabs: true,
@@ -94,143 +70,117 @@ class _BrainResultScreenState extends State<BrainResultScreen> {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          NFHeader(title: 'Brain Dump', onBack: () => Navigator.pop(context)),
-          if (hasError)
-            const Padding(
-              padding: EdgeInsets.symmetric(horizontal: 8, vertical: 12),
-              child: Text(
-                'Something went wrong. Try again?',
-                textAlign: TextAlign.center,
-                style: TextStyle(fontSize: 13, color: AppColors.worriesAccent),
+          NFHeader(
+            title: 'Brain Dump',
+            onBack: () => Navigator.pop(context),
+          ),
+          if (entry == null)
+            const Expanded(
+              child: Center(
+                child: Padding(
+                  padding: EdgeInsets.all(24),
+                  child: Text(
+                    'Brain dump not found.',
+                    style: TextStyle(color: AppColors.textSecondary),
+                  ),
+                ),
               ),
             )
           else
-            Padding(
-              padding: const EdgeInsets.only(bottom: 14, left: 8, right: 8),
-              child: Text(
-                '"$summary"',
-                textAlign: TextAlign.center,
-                style: const TextStyle(
-                  fontSize: 13,
-                  fontStyle: FontStyle.italic,
-                  height: 1.5,
-                  color: AppColors.textSecondary,
-                ),
-              ),
-            ),
-          Expanded(
-            child: categories.isEmpty && !hasError
-                ? const Center(
-                    child: Text(
-                      'Nothing to categorise yet.',
-                      style: TextStyle(color: AppColors.textSecondary),
-                    ),
-                  )
-                : ListView.separated(
-                    padding: const EdgeInsets.only(bottom: 16),
-                    itemCount: categories.length + 1,
-                    separatorBuilder: (_, __) => const SizedBox(height: 10),
-                    itemBuilder: (ctx, i) {
-                      if (i < categories.length) {
-                        return _CategoryCard(cat: categories[i]);
-                      }
-                      return _ActionPrompt(hasError: hasError);
-                    },
-                  ),
-          ),
+            Expanded(child: _Body(entry: entry)),
         ],
       ),
     );
   }
+}
 
-  List<String> _toList(dynamic raw) {
-    if (raw == null) return [];
-    if (raw is List) return raw.map((e) => e.toString()).toList();
-    return [];
+class _Body extends StatelessWidget {
+  final BrainDumpEntry entry;
+  const _Body({required this.entry});
+
+  @override
+  Widget build(BuildContext context) {
+    final cards = <Widget>[
+      if (entry.tasks.isNotEmpty) _CategoryCard(spec: _tasksSpec, items: entry.tasks),
+      if (entry.ideas.isNotEmpty) _CategoryCard(spec: _ideasSpec, items: entry.ideas),
+      if (entry.events.isNotEmpty) _CategoryCard(spec: _eventsSpec, items: entry.events),
+    ];
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.stretch,
+      children: [
+        Padding(
+          padding: const EdgeInsets.only(bottom: 14, left: 8, right: 8),
+          child: Text(
+            '"${entry.summary.isEmpty ? 'Got everything down.' : entry.summary}"',
+            textAlign: TextAlign.center,
+            style: const TextStyle(
+              fontSize: 13,
+              fontStyle: FontStyle.italic,
+              height: 1.5,
+              color: AppColors.textSecondary,
+            ),
+          ),
+        ),
+        Expanded(
+          child: ListView.separated(
+            padding: const EdgeInsets.only(bottom: 16),
+            itemCount: cards.length + 1,
+            separatorBuilder: (_, __) => const SizedBox(height: 10),
+            itemBuilder: (ctx, i) {
+              if (i < cards.length) return cards[i];
+              return const _ActionPrompt();
+            },
+          ),
+        ),
+      ],
+    );
   }
 }
 
-class _CatData {
-  final String label;
-  final Color color, bg, pill;
-  final IconData icon;
-  final List<String> items;
-  const _CatData(
-    this.label,
-    this.color,
-    this.bg,
-    this.pill,
-    this.icon,
-    this.items,
-  );
-}
-
 class _CategoryCard extends StatelessWidget {
-  final _CatData cat;
-  const _CategoryCard({required this.cat});
+  final _CatSpec spec;
+  final List<String> items;
+  const _CategoryCard({required this.spec, required this.items});
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      decoration: BoxDecoration(
-        color: cat.bg,
-        borderRadius: BorderRadius.circular(16),
-      ),
+      decoration:
+          BoxDecoration(color: spec.bg, borderRadius: BorderRadius.circular(16)),
       padding: const EdgeInsets.all(14),
-      child: Stack(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 10,
-                  vertical: 4,
-                ),
-                decoration: BoxDecoration(
-                  color: cat.pill,
-                  borderRadius: BorderRadius.circular(999),
-                ),
-                child: Row(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    Icon(cat.icon, size: 12, color: cat.color),
-                    const SizedBox(width: 6),
-                    Text(
-                      cat.label,
-                      style: TextStyle(
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+            decoration: BoxDecoration(
+              color: spec.pill,
+              borderRadius: BorderRadius.circular(999),
+            ),
+            child: Row(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Icon(spec.icon, size: 12, color: spec.color),
+                const SizedBox(width: 6),
+                Text(spec.label,
+                    style: TextStyle(
                         fontSize: 11,
                         fontWeight: FontWeight.w700,
-                        color: cat.color,
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-              const SizedBox(height: 8),
-              for (final t in cat.items)
-                Padding(
-                  padding: const EdgeInsets.only(bottom: 4),
-                  child: Text(
-                    t,
-                    style: const TextStyle(
-                      fontSize: 13.5,
-                      height: 1.45,
-                      color: AppColors.textPrimary,
-                    ),
-                  ),
-                ),
-            ],
-          ),
-          const Positioned(
-            top: 0,
-            right: 0,
-            child: Icon(
-              Icons.close_rounded,
-              size: 16,
-              color: AppColors.textTertiary,
+                        color: spec.color)),
+              ],
             ),
           ),
+          const SizedBox(height: 8),
+          for (final t in items)
+            Padding(
+              padding: const EdgeInsets.only(bottom: 4),
+              child: Text(t,
+                  style: const TextStyle(
+                      fontSize: 13.5,
+                      height: 1.45,
+                      color: AppColors.textPrimary)),
+            ),
         ],
       ),
     );
@@ -238,8 +188,7 @@ class _CategoryCard extends StatelessWidget {
 }
 
 class _ActionPrompt extends StatelessWidget {
-  final bool hasError;
-  const _ActionPrompt({this.hasError = false});
+  const _ActionPrompt();
 
   @override
   Widget build(BuildContext context) {
@@ -255,20 +204,13 @@ class _ActionPrompt extends StatelessWidget {
           Row(
             mainAxisAlignment: MainAxisAlignment.center,
             children: const [
-              Icon(
-                Icons.auto_awesome_outlined,
-                size: 14,
-                color: AppColors.blue,
-              ),
+              Icon(Icons.auto_awesome_outlined, size: 14, color: AppColors.blue),
               SizedBox(width: 6),
-              Text(
-                'Want me to help with one?',
-                style: TextStyle(
-                  fontSize: 13,
-                  fontWeight: FontWeight.w600,
-                  color: AppColors.navy,
-                ),
-              ),
+              Text('Want me to help with one of these?',
+                  style: TextStyle(
+                      fontSize: 13,
+                      fontWeight: FontWeight.w600,
+                      color: AppColors.navy)),
             ],
           ),
           const SizedBox(height: 10),
@@ -284,21 +226,10 @@ class _ActionPrompt extends StatelessWidget {
                 onPressed: () => Navigator.popUntil(context, (r) => r.isFirst),
               ),
               NFButton(
-                label: hasError ? 'Try again' : 'Work on a task',
-                small: true,
-                onPressed: () => Navigator.pushReplacementNamed(
-                  context,
-                  AppRoutes.taskSteps,
-                ),
-              ),
-              NFButton(
                 label: 'Talk again',
                 small: true,
-                variant: NFButtonVariant.ghost,
-                onPressed: () => Navigator.pushReplacementNamed(
-                  context,
-                  AppRoutes.listening,
-                ),
+                onPressed: () =>
+                    Navigator.pushReplacementNamed(context, AppRoutes.listening),
               ),
             ],
           ),

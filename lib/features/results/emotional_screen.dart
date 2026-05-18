@@ -8,26 +8,29 @@ class EmotionalScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final args =
-        ModalRoute.of(context)?.settings.arguments as Map<String, dynamic>?;
-    final result = args;
+    final rawArgs = ModalRoute.of(context)?.settings.arguments;
+    final result =
+        rawArgs is Map ? Map<String, dynamic>.from(rawArgs) : null;
+    // ignore: avoid_print
+    print('EmotionalScreen args: $result');
 
     final emotionLabel =
-        result?['emotion_label'] as String? ?? 'Feeling overwhelmed';
+        (result?['emotion_label'] as String?) ?? 'Feeling overwhelmed';
     final validationMessage =
-        result?['validation_message'] as String? ??
+        (result?['validation_message'] as String?) ??
         "It's okay to feel this way. You don't have to handle everything at once.";
-    final rawTips = result?['coping_tips'] as List<dynamic>? ?? _fallbackTips;
+    final rawTips = (result?['coping_tips'] is List)
+        ? result!['coping_tips'] as List
+        : _fallbackTips;
 
-    final tips = rawTips
-        .map(
-          (t) => _Tip(
-            t['emoji'] as String? ?? '💙',
-            t['title'] as String? ?? '',
-            t['body'] as String? ?? '',
-          ),
-        )
-        .toList();
+    final tips = rawTips.map((t) {
+      final m = t is Map ? Map<String, dynamic>.from(t) : <String, dynamic>{};
+      return _Tip(
+        (m['emoji'] as String?) ?? '💙',
+        (m['title'] as String?) ?? '',
+        (m['body'] as String?) ?? '',
+      );
+    }).toList();
 
     return NFScreen(
       hideTabs: true,

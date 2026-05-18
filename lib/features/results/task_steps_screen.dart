@@ -25,11 +25,17 @@ class _TaskStepsScreenState extends State<TaskStepsScreen> {
     super.didChangeDependencies();
     if (!_loaded) {
       _loaded = true;
-      final args = ModalRoute.of(context)?.settings.arguments;
-      if (args is Map<String, dynamic>) {
-        _steps = (args['steps'] as List<TaskStepModel>?) ?? [];
+      final rawArgs = ModalRoute.of(context)?.settings.arguments;
+      // ignore: avoid_print
+      print('TaskStepsScreen args type: ${rawArgs.runtimeType}');
+      if (rawArgs is Map) {
+        final args = Map<String, dynamic>.from(rawArgs);
+        final rawSteps = args['steps'];
+        if (rawSteps is List) {
+          _steps = rawSteps.whereType<TaskStepModel>().toList();
+        }
         _taskTitle = (args['taskTitle'] as String?) ?? '';
-        _totalMinutes = (args['totalMinutes'] as int?) ?? 0;
+        _totalMinutes = (args['totalMinutes'] as num?)?.toInt() ?? 0;
         _firstMove = (args['firstMove'] as String?) ?? '';
       }
       if (_steps.isEmpty) {

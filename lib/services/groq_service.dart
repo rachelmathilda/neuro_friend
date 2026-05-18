@@ -28,31 +28,35 @@ class GroqService {
     required bool jsonMode,
   }) async {
     debugPrint('Gemma API trying model: $model');
+    // Gemma doesn't support system_instruction or responseMimeType — fold
+    // the system prompt into the user message instead.
+    final combined = systemPrompt.isEmpty
+        ? userMessage
+        : '$systemPrompt\n\nUser: $userMessage';
     final response = await _dio.post(
       '/models/$model:generateContent?key=$_apiKey',
       data: {
-        'system_instruction': {
-          'parts': [
-            {'text': systemPrompt},
-          ],
-        },
         'contents': [
           {
             'role': 'user',
             'parts': [
-              {'text': userMessage},
+              {'text': combined},
             ],
           },
         ],
         'generationConfig': {
           'maxOutputTokens': maxTokens,
-          if (jsonMode) 'responseMimeType': 'application/json',
         },
       },
     );
     debugPrint('Gemma API success with model: $model');
-    return response.data['candidates'][0]['content']['parts'][0]['text']
-        as String;
+    final parts =
+        (response.data['candidates'][0]['content']['parts'] as List);
+    final answer = parts.firstWhere(
+      (p) => p is Map && p['thought'] != true && p['text'] != null,
+      orElse: () => parts.last,
+    );
+    return answer['text'] as String;
   }
 
   Future<String> chat({
@@ -103,7 +107,15 @@ class GroqService {
       maxTokens: maxTokens,
       jsonMode: true,
     );
-    debugPrint('chatJson clean: $raw');
-    return jsonDecode(raw) as Map<String, dynamic>;
+    debugPrint('chatJson raw: $raw');
+    // Gemma often wraps JSON in ```json ... ``` fences.
+    var cleaned = raw.trim();
+    if (cleaned.startsWith('```')) {
+      cleaned = cleaned.replaceFirst(RegExp(r'^```(?:json)?\s*'), '');
+      final fenceEnd = cleaned.lastIndexOf('```');
+      if (fenceEnd != -1) cleaned = cleaned.substring(0, fenceEnd);
+      cleaned = cleaned.trim();
+    }
+    return jsonDecode(cleaned) as Map<String, dynamic>;
   }
 }

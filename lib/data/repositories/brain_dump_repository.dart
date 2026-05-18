@@ -1,43 +1,38 @@
-import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_auth/firebase_auth.dart';
-import '../models/brain_dump_model.dart';
+import 'package:hive/hive.dart';
+import '../models/brain_dump_entry.dart';
 
 class BrainDumpRepository {
-  final FirebaseFirestore _db = FirebaseFirestore.instance;
+  static const String boxName = 'brain_dumps';
 
-  String get _uid => FirebaseAuth.instance.currentUser!.uid;
+  Box<BrainDumpEntry> get _box => Hive.box<BrainDumpEntry>(boxName);
 
-  CollectionReference get _collection =>
-      _db.collection('users').doc(_uid).collection('brain_dumps');
-
-  Future<void> save(BrainDumpModel dump) async {
-    await _collection.doc(dump.id).set(dump.toMap());
+  Future<BrainDumpEntry> add({
+    required String rawTranscript,
+    required Map<String, dynamic> gemmaJson,
+  }) async {
+    final id = DateTime.now().microsecondsSinceEpoch.toString();
+    final entry = BrainDumpEntry.fromGemma(
+      id: id,
+      timestamp: DateTime.now(),
+      rawTranscript: rawTranscript,
+      json: gemmaJson,
+    );
+    await _box.put(id, entry);
+    return entry;
   }
 
-  Future<List<BrainDumpModel>> fetchRecent({int limit = 20}) async {
-    final snapshot = await _collection
-        .orderBy('createdAt', descending: true)
-        .limit(limit)
-        .get();
-
-    return snapshot.docs
-        .map(
-          (d) => BrainDumpModel.fromMap(d.data() as Map<String, dynamic>, d.id),
-        )
-        .toList();
+  List<BrainDumpEntry> all() {
+    final items = _box.values.toList();
+    items.sort((a, b) => b.timestamp.compareTo(a.timestamp));
+    return items;
   }
 
-  Future<Map<String, int>> fetchTotals() async {
-    final dumps = await fetchRecent(limit: 100);
-    return {
-      'tasks': dumps.fold(0, (acc, d) => acc + d.taskCount),
-      'ideas': dumps.fold(0, (acc, d) => acc + d.ideaCount),
-      'events': dumps.fold(0, (acc, d) => acc + d.eventCount),
-      'worries': dumps.fold(0, (acc, d) => acc + d.worryCount),
-    };
-  }
+  BrainDumpEntry? byId(String id) => _box.get(id);
 
-  Future<void> delete(String dumpId) async {
-    await _collection.doc(dumpId).delete();
+  Future<void> delete(String id) => _box.delete(id);
+
+  Future<List<BrainDumpEntry>> fetchRecent({int limit = 100}) async {
+    final items = all();
+    return items.take(limit).toList();
   }
 }
